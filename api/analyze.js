@@ -17,6 +17,17 @@ export default async function handler(req, res) {
   }
 
   try {
+    // Add web search tool to the request
+    const requestBody = {
+      ...req.body,
+      tools: [
+        {
+          type: "web_search_20250305",
+          name: "web_search"
+        }
+      ]
+    };
+
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -24,7 +35,7 @@ export default async function handler(req, res) {
         'x-api-key': apiKey,
         'anthropic-version': '2023-06-01'
       },
-      body: JSON.stringify(req.body)
+      body: JSON.stringify(requestBody)
     });
 
     const data = await response.json();
