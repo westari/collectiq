@@ -2,8 +2,10 @@ export const config = {
   api: {
     bodyParser: {
       sizeLimit: '10mb'
-    }
-  }
+    },
+    responseLimit: false
+  },
+  maxDuration: 60
 };
 
 export default async function handler(req, res) {
@@ -17,7 +19,6 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Add web search tool to the request
     const requestBody = {
       ...req.body,
       tools: [
@@ -38,7 +39,9 @@ export default async function handler(req, res) {
       body: JSON.stringify(requestBody)
     });
 
-    const data = await response.json();
+    const responseText = await response.text();
+    const data = JSON.parse(responseText);
+    
     return res.status(200).json(data);
   } catch (error) {
     return res.status(500).json({ error: error.message });
