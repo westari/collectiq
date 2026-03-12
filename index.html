@@ -55,7 +55,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:40;background:rgba(6,10,18,0.85)
 .nav-logo-icon{width:32px;height:32px;background:linear-gradient(135deg,var(--purple),var(--blue));border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue';font-size:14px;color:#fff;}
 .nav-logo-text{font-family:'Bebas Neue';font-size:26px;letter-spacing:1px;line-height:1;}
 .nav-logo-text span{color:var(--purple);}
-.nav-logo-img{height:26px;border-radius:5px;display:block;}
+.nav-logo-img{height:32px;border-radius:5px;display:block;}
 .nav-links{display:flex;align-items:center;gap:20px;}
 .nav-link{font-family:'Bebas Neue';font-size:14px;letter-spacing:1.5px;color:var(--muted);cursor:pointer;transition:color 0.2s;text-decoration:none;}
 .nav-link:hover{color:var(--text);}
@@ -269,8 +269,8 @@ nav{position:fixed;top:0;left:0;right:0;z-index:40;background:rgba(6,10,18,0.85)
 
 <nav>
   <div class="nav-inner">
-    <div class="nav-logo" onclick="showPage('landing')">
-    <img src="logo.png" alt="ParlAI" style="height:88px;">
+   <div class="nav-logo" onclick="showPage('landing')">
+    <img src="logo.png" alt="ParlAI" class="nav-logo-img">
 </div>
     <div class="nav-links">
       <a class="nav-link" onclick="showPage('analyze')">BUILD PARLAY</a>
