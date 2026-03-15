@@ -1,0 +1,1284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ParlAI — AI-Powered Parlay Builder</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #060A12;
+  --surface: #0F1520;
+  --surface-2: #161E2E;
+  --surface-3: #1C2640;
+  --border: rgba(255,255,255,0.06);
+  --border-hover: rgba(255,255,255,0.12);
+  --text: #E8ECF4;
+  --muted: #7B8BA6;
+  --dim: #4A5568;
+  --green: #22C55E;
+  --green-glow: rgba(34,197,94,0.15);
+  --red: #EF4444;
+  --yellow: #F59E0B;
+  --orange: #F97316;
+  --blue: #2E7CF6;
+  --blue-bright: #5B9EFF;
+  --cyan: #06D6F2;
+  --purple: #A855F7;
+  --purple-glow: rgba(168,85,247,0.15);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',system-ui,sans-serif;min-height:100vh;overflow-x:hidden;}
+.bebas{font-family:'Bebas Neue',sans-serif;}
+.mono{font-family:'JetBrains Mono',monospace;}
+.green{color:var(--green);}
+.red{color:var(--red);}
+.yellow{color:var(--yellow);}
+.blue{color:var(--blue-bright);}
+.cyan{color:var(--cyan);}
+.purple{color:var(--purple);}
+
+/* BG Effects */
+.bg-grain{position:fixed;inset:0;opacity:0.02;pointer-events:none;z-index:50;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");}
+.bg-glow-1{position:fixed;top:-200px;right:-100px;width:900px;height:900px;background:radial-gradient(circle,rgba(168,85,247,0.12) 0%,rgba(46,124,246,0.04) 40%,transparent 70%);pointer-events:none;}
+.bg-glow-2{position:fixed;bottom:-200px;left:-100px;width:800px;height:800px;background:radial-gradient(circle,rgba(34,197,94,0.08) 0%,rgba(168,85,247,0.03) 40%,transparent 70%);pointer-events:none;}
+.bg-glow-3{position:fixed;top:40%;left:50%;transform:translate(-50%,-50%);width:1200px;height:600px;background:radial-gradient(ellipse,rgba(168,85,247,0.04) 0%,transparent 70%);pointer-events:none;}
+
+.page{display:none;position:relative;z-index:1;}
+.page.active{display:block;}
+
+/* Nav */
+nav{position:relative;z-index:40;background:rgba(6,10,18,0.95);border-bottom:1px solid var(--border);}
+.nav-inner{max-width:1200px;margin:0 auto;padding:16px 32px;display:flex;align-items:center;gap:40px;}
+.nav-logo{display:flex;align-items:center;gap:8px;cursor:pointer;flex-shrink:0;}
+.nav-logo-icon{width:32px;height:32px;background:linear-gradient(135deg,var(--purple),var(--blue));border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue';font-size:14px;color:#fff;}
+.nav-logo-text{font-family:'Bebas Neue';font-size:26px;letter-spacing:1px;line-height:1;}
+.nav-logo-text span{color:var(--purple);}
+.nav-logo-img{height:44px;border-radius:5px;display:block;}
+.nav-links{display:flex;align-items:center;gap:32px;}
+.nav-link{font-family:'Bebas Neue';font-size:15px;letter-spacing:1.5px;color:var(--muted);cursor:pointer;transition:color 0.2s;text-decoration:none;}
+.nav-link:hover{color:var(--text);}
+.nav-link.active-link{color:var(--purple);}
+.nav-right{margin-left:auto;display:flex;align-items:center;gap:16px;}
+.nav-btn{font-family:'Bebas Neue';font-size:13px;letter-spacing:1.5px;background:linear-gradient(135deg,var(--purple),var(--blue));color:#fff;border:none;padding:10px 24px;border-radius:6px;cursor:pointer;transition:all 0.2s;}
+.nav-btn:hover{transform:translateY(-1px);box-shadow:0 4px 20px rgba(168,85,247,0.3);}
+
+/* Hero */
+.hero{max-width:1100px;margin:0 auto;padding:60px 24px 80px;text-align:center;}
+.hero-badge{display:inline-block;font-family:'JetBrains Mono';font-size:11px;letter-spacing:2px;color:var(--purple);border:1px solid rgba(168,85,247,0.25);padding:6px 16px;border-radius:20px;margin-bottom:24px;text-transform:uppercase;animation:fadeUp 0.6s ease;}
+.hero h1{font-family:'Bebas Neue';font-size:clamp(42px,9vw,90px);letter-spacing:3px;line-height:0.95;margin-bottom:20px;animation:fadeUp 0.6s ease 0.1s both;}
+.hero h1 .accent{background:linear-gradient(135deg,var(--purple),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.hero p{font-size:17px;color:var(--muted);max-width:500px;margin:0 auto 36px;line-height:1.6;animation:fadeUp 0.6s ease 0.2s both;}
+.hero-cta{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;animation:fadeUp 0.6s ease 0.3s both;}
+.btn-primary{font-family:'Bebas Neue';font-size:16px;letter-spacing:2px;background:linear-gradient(135deg,var(--purple),var(--blue));color:#fff;border:none;padding:14px 36px;border-radius:8px;cursor:pointer;transition:all 0.25s;}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(168,85,247,0.3);}
+.btn-secondary{font-family:'Bebas Neue';font-size:16px;letter-spacing:2px;background:transparent;color:var(--text);border:1px solid var(--border-hover);padding:14px 36px;border-radius:8px;cursor:pointer;transition:all 0.25s;}
+.btn-secondary:hover{border-color:var(--muted);transform:translateY(-2px);}
+
+/* Preview Parlay Card */
+.hero-preview{max-width:700px;margin:50px auto 0;background:var(--surface);border:1px solid rgba(168,85,247,0.15);border-radius:16px;padding:24px;text-align:left;animation:fadeUp 0.8s ease 0.4s both;position:relative;overflow:hidden;}
+.example-parlay-card{max-width:650px;margin:0 auto;background:var(--surface);border:1px solid rgba(168,85,247,0.25);border-radius:14px;padding:22px;box-shadow:0 20px 60px rgba(168,85,247,0.12),0 0 30px rgba(46,124,246,0.06);animation:fadeUp 0.8s ease 0.5s both;}
+.ep-header{text-align:center;margin-bottom:16px;}
+.ep-badge{display:inline-block;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;letter-spacing:1.5px;color:var(--purple);background:rgba(168,85,247,0.1);border:1px solid rgba(168,85,247,0.25);border-radius:20px;padding:5px 14px;margin-bottom:10px;}
+.ep-title{font-family:'Bebas Neue',sans-serif;font-size:30px;color:var(--text);letter-spacing:1px;}
+.ep-odds{color:var(--green);margin-left:8px;}
+.ep-legs{display:flex;flex-direction:column;gap:8px;}
+.ep-leg{border-radius:10px;overflow:hidden;position:relative;}
+.ep-leg::after{content:'';position:absolute;inset:0;background:rgba(0,0,0,0.4);pointer-events:none;}
+.ep-leg-inner{position:relative;z-index:1;display:flex;justify-content:space-between;align-items:center;padding:14px 18px;}
+.ep-pick{font-family:'Bebas Neue',sans-serif;font-size:21px;color:#fff;line-height:1.1;}
+.ep-matchup{font-family:'DM Sans',sans-serif;font-size:12px;color:rgba(255,255,255,0.55);margin-top:2px;}
+.ep-leg-right{text-align:right;}
+.ep-conf-num{font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:700;color:#fff;}
+.ep-conf-label{font-family:'DM Sans',sans-serif;font-size:10px;color:rgba(255,255,255,0.5);letter-spacing:0.5px;}
+.ep-footer{text-align:center;margin-top:16px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.06);}
+.ep-parlay-conf{font-family:'JetBrains Mono',monospace;font-size:15px;color:var(--muted);font-weight:600;margin-bottom:4px;}
+.ep-payout{font-family:'JetBrains Mono',monospace;font-size:19px;color:var(--text);font-weight:700;}
+
+.parlay-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;}
+.parlay-badge{font-family:'JetBrains Mono';font-size:10px;letter-spacing:1.5px;color:var(--purple);background:var(--purple-glow);padding:4px 12px;border-radius:10px;text-transform:uppercase;}
+.parlay-odds{font-family:'Bebas Neue';font-size:28px;}
+.parlay-leg{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border);}
+.parlay-leg:last-child{border-bottom:none;}
+.leg-info{display:flex;align-items:center;gap:12px;}
+.leg-num{width:24px;height:24px;border-radius:50%;background:var(--purple-glow);color:var(--purple);display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue';font-size:12px;}
+.leg-pick{font-weight:600;font-size:14px;}
+.leg-detail{font-size:11px;color:var(--dim);margin-top:2px;}
+.leg-conf{text-align:right;}
+.leg-conf-val{font-family:'Bebas Neue';font-size:18px;}
+.leg-conf-label{font-family:'JetBrains Mono';font-size:8px;color:var(--dim);letter-spacing:1px;text-transform:uppercase;}
+.parlay-footer{display:flex;align-items:center;justify-content:space-between;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);}
+.parlay-payout{font-family:'Bebas Neue';font-size:14px;color:var(--dim);letter-spacing:1px;}
+.parlay-payout span{font-size:24px;color:var(--green);}
+.parlay-confidence{text-align:right;}
+.parlay-confidence-val{font-family:'Bebas Neue';font-size:24px;color:var(--purple);}
+.parlay-confidence-label{font-family:'JetBrains Mono';font-size:8px;color:var(--dim);letter-spacing:1px;text-transform:uppercase;}
+
+/* How It Works */
+.how-it-works{max-width:1100px;margin:0 auto;padding:60px 24px 80px;}
+.section-heading{font-family:'Bebas Neue';font-size:36px;letter-spacing:2px;text-align:center;margin-bottom:48px;}
+.steps-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;}
+.step-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:28px;text-align:center;transition:all 0.3s;}
+.step-card:hover{border-color:rgba(168,85,247,0.2);transform:translateY(-4px);}
+.step-num{width:48px;height:48px;border-radius:50%;background:var(--purple-glow);color:var(--purple);display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue';font-size:22px;margin:0 auto 16px;}
+.step-card h3{font-family:'Bebas Neue';font-size:20px;letter-spacing:1px;margin-bottom:8px;}
+.step-card p{font-size:14px;color:var(--muted);line-height:1.6;}
+
+/* Features */
+.features{max-width:1100px;margin:0 auto;padding:20px 24px 80px;}
+.features-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;}
+.feature-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:28px;transition:all 0.3s;}
+.feature-card:hover{border-color:var(--border-hover);transform:translateY(-4px);}
+.feature-icon{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:16px;}
+.feature-card h3{font-family:'Bebas Neue';font-size:20px;letter-spacing:1px;margin-bottom:8px;}
+.feature-card p{font-size:14px;color:var(--muted);line-height:1.6;}
+
+/* Pricing */
+.pricing{max-width:960px;margin:0 auto;padding:60px 24px 80px;}
+.pricing-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;}
+.price-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:32px;position:relative;}
+.price-card.featured{border-color:var(--purple);}
+.price-card.featured::before{content:'MOST POPULAR';position:absolute;top:-12px;left:50%;transform:translateX(-50%);font-family:'JetBrains Mono';font-size:9px;letter-spacing:2px;background:linear-gradient(135deg,var(--purple),var(--blue));color:#fff;padding:4px 14px;border-radius:10px;}
+.price-name{font-family:'Bebas Neue';font-size:22px;letter-spacing:1.5px;margin-bottom:4px;}
+.price-amount{font-family:'Bebas Neue';font-size:48px;margin-bottom:4px;}
+.price-amount span{font-size:16px;color:var(--muted);}
+.price-desc{font-size:13px;color:var(--muted);margin-bottom:20px;}
+.price-features{list-style:none;margin-bottom:24px;}
+.price-features li{font-size:13px;color:var(--muted);padding:6px 0;display:flex;align-items:center;gap:8px;}
+.price-features li::before{content:'✓';color:var(--green);font-weight:bold;}
+.price-btn{width:100%;font-family:'Bebas Neue';font-size:15px;letter-spacing:1.5px;padding:12px;border-radius:8px;cursor:pointer;transition:all 0.2s;border:none;}
+.price-btn:hover{transform:translateY(-2px);}
+
+/* FAQ */
+.faq{max-width:700px;margin:0 auto;padding:40px 24px 100px;}
+.faq-item{border-bottom:1px solid var(--border);padding:20px 0;}
+.faq-q{font-weight:600;font-size:15px;margin-bottom:8px;}
+.faq-a{font-size:14px;color:var(--muted);line-height:1.6;}
+
+/* Analyze Page */
+.analyze-container{max-width:1100px;margin:0 auto;padding:100px 24px 80px;}
+.analyze-header{text-align:center;margin-bottom:12px;}
+.analyze-header h1{font-family:'Bebas Neue';font-size:clamp(28px,5vw,44px);letter-spacing:2px;margin-bottom:8px;}
+.analyze-header p{font-size:15px;color:var(--muted);}
+.mode-tabs{display:flex;justify-content:center;gap:4px;margin-bottom:30px;border-bottom:1px solid var(--border);padding-bottom:0;}
+.mode-tab{font-family:'Bebas Neue';font-size:15px;letter-spacing:1.5px;padding:10px 24px;color:var(--dim);cursor:pointer;border-bottom:2px solid transparent;transition:all 0.2s;background:none;border-top:none;border-left:none;border-right:none;}
+.mode-tab.active{color:var(--purple);border-bottom-color:var(--purple);}
+.mode-tab:hover{color:var(--text);}
+.mode-content{display:none;}
+.mode-content.active{display:block;}
+.analyze-layout{display:grid;grid-template-columns:380px 1fr;gap:24px;align-items:start;}
+.input-panel{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px;position:sticky;top:90px;}
+.input-title{font-family:'Bebas Neue';font-size:16px;letter-spacing:1.5px;margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+.input-label{font-family:'JetBrains Mono';font-size:10px;letter-spacing:1px;color:var(--dim);text-transform:uppercase;margin-bottom:6px;}
+.input-field{width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:10px 12px;color:var(--text);font-family:'DM Sans';font-size:14px;outline:none;margin-bottom:12px;}
+.input-field:focus{border-color:var(--purple);}
+.upload-zone{border:2px dashed rgba(255,255,255,0.1);border-radius:12px;padding:40px 20px;text-align:center;cursor:pointer;transition:all 0.3s;margin-bottom:14px;}
+.upload-zone:hover{border-color:var(--purple);background:rgba(168,85,247,0.03);}
+.upload-zone.has-image{border-color:var(--green);padding:0;}
+.upload-zone img{max-width:100%;border-radius:10px;display:block;}
+.analyze-btn{width:100%;font-family:'Bebas Neue';font-size:16px;letter-spacing:2px;background:linear-gradient(135deg,var(--purple),var(--blue));color:#fff;border:none;padding:14px;border-radius:8px;cursor:pointer;margin-top:8px;transition:all 0.25s;}
+.analyze-btn:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(168,85,247,0.3);}
+.analyze-btn:disabled{opacity:0.4;cursor:not-allowed;transform:none;box-shadow:none;}
+
+/* Results */
+.results-panel{min-height:400px;}
+.results-empty{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:60px 24px;text-align:center;}
+.results-empty-icon{font-size:48px;margin-bottom:16px;opacity:0.3;}
+.results-empty h3{font-family:'Bebas Neue';font-size:20px;letter-spacing:1.5px;margin-bottom:8px;color:var(--muted);}
+.results-empty p{font-size:13px;color:var(--dim);}
+.loading-state{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:60px 24px;text-align:center;}
+.spinner{width:40px;height:40px;border:3px solid var(--surface-2);border-top-color:var(--purple);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 20px;}
+.error-box{background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);border-radius:12px;padding:20px;text-align:center;}
+.error-box h3{font-family:'Bebas Neue';font-size:18px;color:var(--red);margin-bottom:8px;}
+.error-box p{font-size:13px;color:rgba(255,255,255,0.6);}
+.results-live{animation:fadeUp 0.5s ease;}
+.section-panel{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:22px;margin-bottom:20px;}
+.section-title{font-family:'Bebas Neue';font-size:16px;letter-spacing:1.5px;margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+.verdict-banner{border-radius:14px;padding:24px 28px;margin-bottom:20px;display:flex;flex-wrap:wrap;gap:20px;align-items:center;justify-content:space-between;}
+.verdict-left{display:flex;align-items:center;gap:16px;}
+.verdict-signal{width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue';font-size:20px;}
+.verdict-stats{display:flex;gap:24px;}
+.v-stat-label{font-family:'JetBrains Mono';font-size:9px;letter-spacing:1.5px;color:rgba(255,255,255,0.4);text-transform:uppercase;}
+.v-stat-value{font-family:'Bebas Neue';font-size:26px;}
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;}
+.info-row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.03);align-items:center;}
+.info-row:last-child{border-bottom:none;}
+.info-key{font-size:12px;color:var(--muted);}
+.info-val{font-family:'JetBrains Mono';font-size:12px;font-weight:600;}
+.grade-row{display:flex;align-items:center;gap:12px;margin-bottom:12px;}
+.grade-row-label{font-family:'JetBrains Mono';font-size:10px;letter-spacing:0.5px;color:var(--muted);width:140px;min-width:140px;text-transform:uppercase;}
+.grade-row-bar-bg{flex:1;height:6px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden;}
+.grade-row-bar{height:100%;border-radius:3px;}
+.grade-row-val{font-family:'JetBrains Mono';font-size:11px;font-weight:600;width:30px;text-align:right;}
+.grade-summary{font-size:11px;color:var(--dim);margin-top:2px;margin-bottom:8px;margin-left:152px;}
+.reason-item{display:flex;gap:12px;padding:14px 0;border-bottom:1px solid rgba(255,255,255,0.04);}
+.reason-item:last-child{border-bottom:none;}
+.reason-num{width:26px;height:26px;min-width:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue';font-size:13px;}
+.reason-title{font-weight:600;font-size:13px;margin-bottom:4px;}
+.reason-text{font-size:12px;line-height:1.6;color:rgba(255,255,255,0.6);}
+.move-card{background:var(--surface);border:1px solid rgba(168,85,247,0.12);border-radius:12px;padding:18px;display:flex;gap:14px;align-items:flex-start;margin-bottom:10px;}
+.move-num{width:30px;height:30px;min-width:30px;border-radius:50%;background:linear-gradient(135deg,var(--purple),var(--blue));color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue';font-size:14px;}
+.move-text{font-size:13px;line-height:1.6;color:rgba(255,255,255,0.8);}
+.tags-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;}
+.tag{font-family:'JetBrains Mono';font-size:10px;letter-spacing:0.5px;padding:4px 12px;border-radius:20px;background:var(--surface-2);color:var(--muted);border:1px solid var(--border);}
+.disclaimer{font-size:11px;color:var(--dim);line-height:1.5;padding:16px;background:var(--surface);border-radius:10px;border:1px solid var(--border);margin-top:20px;}
+
+/* Parlay Result */
+.parlay-result{background:var(--surface);border:1px solid rgba(168,85,247,0.15);border-radius:14px;padding:24px;margin-bottom:20px;position:relative;overflow:hidden;}
+.parlay-result::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--purple),var(--blue),var(--cyan));}
+.parlay-result-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;}
+.parlay-result-leg{padding:16px 0;border-bottom:1px solid var(--border);}
+.parlay-result-leg:last-child{border-bottom:none;}
+.leg-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.leg-pick-name{font-family:'Bebas Neue';font-size:18px;letter-spacing:1px;}
+.leg-confidence{font-family:'Bebas Neue';font-size:20px;}
+.leg-reasoning{font-size:12px;color:rgba(255,255,255,0.6);line-height:1.6;}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media(max-width:768px){
+  .analyze-layout{grid-template-columns:1fr !important;}
+  .input-panel{position:static !important;}
+  .verdict-banner{flex-direction:column;align-items:flex-start;}
+  .verdict-stats{flex-wrap:wrap;}
+  .info-grid{grid-template-columns:1fr !important;}
+  .steps-grid{grid-template-columns:1fr !important;}
+  .pricing-grid{grid-template-columns:1fr !important;}
+  .parlay-header{flex-direction:column;gap:8px;}
+  .nav-inner{justify-content:space-between;}
+  .nav-links{display:none;}
+  .nav-right{margin-left:auto;}
+  .nav-logo{gap:10px;}
+  .nav-logo-text{font-size:24px;}
+  .nav-logo-img{height:32px;}
+  .hero{padding:40px 20px 50px;}
+  .hero h1{font-size:clamp(48px,13vw,68px);letter-spacing:2px;}
+  .hero p{font-size:16px;margin-bottom:24px;}
+  .hero-badge{font-size:9px;padding:5px 12px;}
+  .hero-cta{flex-direction:column;align-items:center;gap:10px;}
+  .btn-primary,.btn-secondary{width:100%;max-width:300px;text-align:center;padding:14px 28px;font-size:16px;}
+  .hero-preview{padding:0 !important;margin-top:30px;text-align:center;border:none !important;background:transparent !important;transform:none;transform-origin:top center;}
+  .example-parlay-card{max-width:300px;padding:12px;}
+  .ep-title{font-size:22px;}
+  .ep-badge{font-size:9px;padding:4px 10px;}
+  .ep-leg-inner{padding:9px 12px;}
+  .ep-pick{font-size:15px;}
+  .ep-matchup{font-size:10px;}
+  .ep-conf-num{font-size:14px;}
+  .ep-conf-label{font-size:9px;}
+  .ep-legs{gap:5px;}
+  .ep-parlay-conf{font-size:12px;}
+  .ep-payout{font-size:15px;}
+  .ep-footer{margin-top:10px;padding-top:10px;}
+  .parlay-header{text-align:center;align-items:center;}
+  .parlay-footer{align-items:center;text-align:center;}
+  .parlay-confidence{text-align:center;}
+  .parlay-leg{padding:10px 0;}
+  .leg-pick{font-size:13px;}
+  .leg-conf-val{font-size:16px;}
+  .parlay-odds{font-size:22px;}
+  .parlay-footer{flex-direction:column;gap:12px;align-items:flex-start;}
+  .parlay-payout span{font-size:20px;}
+  .section-heading{font-size:26px;}
+  .mode-tabs{gap:0;}
+  .mode-tab{font-size:12px;padding:10px 14px;letter-spacing:1px;}
+  .parlay-result-header{flex-direction:column;}
+  .parlay-result-leg .leg-header{flex-direction:column;align-items:flex-start;gap:6px;}
+  .leg-confidence{font-size:18px;}
+  .preview-scores-grid{grid-template-columns:1fr 1fr !important;}
+}
+
+/* Auth Modal */
+.auth-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:100;display:none;align-items:center;justify-content:center;backdrop-filter:blur(4px);}
+.auth-overlay.visible{display:flex;}
+.auth-modal{background:var(--surface);border:1px solid rgba(168,85,247,0.2);border-radius:16px;padding:32px;width:90%;max-width:380px;position:relative;}
+.auth-modal h2{font-family:'Bebas Neue';font-size:28px;letter-spacing:2px;text-align:center;margin-bottom:4px;}
+.auth-modal p{font-size:13px;color:var(--muted);text-align:center;margin-bottom:20px;}
+.auth-modal .input-field{margin-bottom:10px;}
+.auth-modal .auth-btn{width:100%;font-family:'Bebas Neue';font-size:16px;letter-spacing:2px;background:linear-gradient(135deg,var(--purple),var(--blue));color:#fff;border:none;padding:14px;border-radius:8px;cursor:pointer;margin-top:8px;transition:all 0.2s;}
+.auth-modal .auth-btn:hover{transform:translateY(-1px);box-shadow:0 4px 20px rgba(168,85,247,0.3);}
+.auth-modal .auth-switch{text-align:center;margin-top:14px;font-size:13px;color:var(--muted);}
+.auth-modal .auth-switch span{color:var(--purple);cursor:pointer;}
+.auth-modal .auth-switch span:hover{text-decoration:underline;}
+.auth-modal .auth-error{color:var(--red);font-size:12px;text-align:center;margin-top:8px;display:none;}
+.auth-modal .auth-close{position:absolute;top:12px;right:16px;font-size:20px;color:var(--muted);cursor:pointer;background:none;border:none;}
+.auth-modal .auth-close:hover{color:var(--text);}
+
+/* User menu in nav */
+.user-menu{display:flex;align-items:center;gap:10px;}
+.user-email{font-family:'JetBrains Mono';font-size:10px;color:var(--muted);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.user-plan-badge{font-family:'JetBrains Mono';font-size:9px;letter-spacing:1px;padding:3px 8px;border-radius:8px;text-transform:uppercase;}
+.user-plan-badge.free{background:var(--surface-2);color:var(--muted);}
+.user-plan-badge.pro{background:linear-gradient(135deg,var(--purple),var(--blue));color:#fff;}
+.user-plan-badge.ultra{background:linear-gradient(135deg,var(--purple),var(--cyan));color:#fff;}
+.nav-btn-sm{font-family:'Bebas Neue';font-size:12px;letter-spacing:1.5px;background:none;color:var(--muted);border:1px solid var(--border);padding:6px 14px;border-radius:6px;cursor:pointer;}
+.nav-btn-sm:hover{color:var(--text);border-color:var(--muted);}
+.usage-bar{font-family:'JetBrains Mono';font-size:10px;color:var(--dim);text-align:center;padding:8px;border-bottom:1px solid var(--border);margin-bottom:12px;}
+.usage-bar span{color:var(--purple);font-weight:700;}
+</style>
+</head>
+<body>
+
+<div class="bg-grain"></div>
+<div class="bg-glow-1"></div>
+<div class="bg-glow-2"></div>
+<div class="bg-glow-3"></div>
+
+<nav>
+  <div class="nav-inner">
+    <div class="nav-logo" onclick="showPage('landing')">
+      <img src="logo.png" alt="ParlAI" class="nav-logo-img">
+    </div>
+    <div class="nav-links">
+      <a class="nav-link" onclick="document.getElementById('how-it-works').scrollIntoView({behavior:'smooth'})">HOW IT WORKS</a>
+      <a class="nav-link" onclick="document.getElementById('pricing').scrollIntoView({behavior:'smooth'})">PRICING</a>
+    </div>
+    <div class="nav-right">
+      <!-- Logged out state -->
+      <div id="navLoggedOut">
+        <button class="nav-btn" onclick="showAuth('signup')">SIGN UP FREE</button>
+      </div>
+      <!-- Logged in state -->
+      <div id="navLoggedIn" style="display:none;">
+        <div class="user-menu">
+          <span id="navPlanBadge" class="user-plan-badge free">FREE</span>
+          <span id="navEmail" class="user-email"></span>
+          <button class="nav-btn-sm" onclick="doLogout()">LOG OUT</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<!-- Auth Modal -->
+<div class="auth-overlay" id="authOverlay" onclick="if(event.target===this)closeAuth()">
+  <div class="auth-modal">
+    <button class="auth-close" onclick="closeAuth()">&times;</button>
+    <h2 id="authTitle">SIGN UP</h2>
+    <p id="authSubtitle">Create your free ParlAI account</p>
+    <input type="email" class="input-field" id="authEmail" placeholder="Email address" />
+    <input type="password" class="input-field" id="authPassword" placeholder="Password (6+ characters)" />
+    <button class="auth-btn" id="authSubmitBtn" onclick="doAuth()">SIGN UP</button>
+    <div class="auth-error" id="authError"></div>
+    <div class="auth-switch" id="authSwitchText">
+      Already have an account? <span onclick="toggleAuthMode()">Log in</span>
+    </div>
+  </div>
+</div>
+
+<!-- LANDING PAGE -->
+<div id="page-landing" class="page active">
+  <div class="hero">
+    <div class="hero-badge">✦ AI-POWERED PARLAY INTELLIGENCE</div>
+    <h1>AI BUILDS YOUR<br><span class="accent">PERFECT PARLAY</span></h1>
+    <p>Upload tonight's games. ParlAI analyzes every matchup, finds the best legs, and builds you a high-confidence parlay with full reasoning.</p>
+    <div class="hero-cta">
+      <button class="btn-primary" onclick="currentUser?showPage('analyze'):showAuth('signup')">BUILD MY PARLAY</button>
+      <button class="btn-secondary" style="border:1px solid rgba(168,85,247,0.4);background:linear-gradient(135deg,rgba(168,85,247,0.1),rgba(46,124,246,0.1));" onclick="currentUser?showPage('analyze'):showAuth('signup')">ANALYZE A PICK</button>
+    </div>
+
+    <!-- Example Parlay -->
+    <div class="hero-preview" style="background:transparent;border:none;padding:0;text-align:center;overflow:visible;">
+
+      <!-- Example Parlay Card (HTML/CSS) -->
+      <div class="example-parlay-card">
+        <div class="ep-header">
+          <div class="ep-badge">⚡ EXAMPLE PARLAY · 4 LEGS</div>
+          <div class="ep-title">TONIGHT'S NBA <span class="ep-odds">+920</span></div>
+        </div>
+        <div class="ep-legs">
+          <div class="ep-leg" style="background:linear-gradient(135deg, #FDB927, #007A33);">
+            <div class="ep-leg-inner">
+              <div class="ep-leg-left">
+                <div class="ep-pick">Lakers ML</div>
+                <div class="ep-matchup">vs Celtics</div>
+              </div>
+              <div class="ep-leg-right">
+                <div class="ep-conf-num">74%</div>
+                <div class="ep-conf-label">confidence</div>
+              </div>
+            </div>
+          </div>
+          <div class="ep-leg" style="background:linear-gradient(135deg, #CE1141, #1D428A);">
+            <div class="ep-leg-inner">
+              <div class="ep-leg-left">
+                <div class="ep-pick">76ers ML</div>
+                <div class="ep-matchup">vs Mavericks</div>
+              </div>
+              <div class="ep-leg-right">
+                <div class="ep-conf-num">68%</div>
+                <div class="ep-conf-label">confidence</div>
+              </div>
+            </div>
+          </div>
+          <div class="ep-leg" style="background:linear-gradient(135deg, #0077C0, #C4CED4);">
+            <div class="ep-leg-inner">
+              <div class="ep-leg-left">
+                <div class="ep-pick">Thunder ML</div>
+                <div class="ep-matchup">vs Spurs</div>
+              </div>
+              <div class="ep-leg-right">
+                <div class="ep-conf-num">71%</div>
+                <div class="ep-conf-label">confidence</div>
+              </div>
+            </div>
+          </div>
+          <div class="ep-leg" style="background:linear-gradient(135deg, #552583, #C8102E);">
+            <div class="ep-leg-inner">
+              <div class="ep-leg-left">
+                <div class="ep-pick">Bulls ML</div>
+                <div class="ep-matchup">vs Nuggets</div>
+              </div>
+              <div class="ep-leg-right">
+                <div class="ep-conf-num">59%</div>
+                <div class="ep-conf-label">confidence</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="ep-footer">
+          <div class="ep-parlay-conf">62% PARLAY CONFIDENCE</div>
+          <div class="ep-payout">$10 BET → <span style="color:var(--green);font-weight:700;">$102</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- How It Works -->
+  <div class="how-it-works" id="how-it-works">
+    <div class="section-heading">HOW IT WORKS</div>
+    <div class="steps-grid">
+      <div class="step-card">
+        <div class="step-num">1</div>
+        <h3>SCREENSHOT</h3>
+        <p>Screenshot tonight's games from DraftKings, FanDuel, ESPN, or any sports app.</p>
+      </div>
+      <div class="step-card">
+        <div class="step-num">2</div>
+        <h3>AI ANALYZES</h3>
+        <p>ParlAI reads the matchups, searches for live stats and injuries, and finds the best picks.</p>
+      </div>
+      <div class="step-card">
+        <div class="step-num">3</div>
+        <h3>GET YOUR PARLAY</h3>
+        <p>Receive a full parlay with confidence ratings, reasoning for each leg, and risk analysis.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Features -->
+  <div class="features">
+    <div class="section-heading">WHY PARLAI</div>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon" style="background:var(--purple-glow);">🧠</div>
+        <h3>AI BUILDS IT FOR YOU</h3>
+        <p>Don't just analyze your picks — let AI find the best legs and build the optimal parlay from tonight's entire slate.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:var(--green-glow);">📊</div>
+        <h3>REAL-TIME DATA</h3>
+        <p>Live web search pulls current records, injuries, and recent form before every prediction. No outdated stats.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(6,214,242,0.12);">⚡</div>
+        <h3>CORRELATION DETECTION</h3>
+        <p>AI identifies correlated legs in your parlay and warns you about hidden risk. Smarter parlays, better odds.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pricing -->
+  <div class="pricing" id="pricing">
+    <div class="section-heading">SIMPLE PRICING</div>
+    <div class="pricing-grid">
+      <div class="price-card">
+        <div class="price-name">FREE</div>
+        <div class="price-amount">$0<span>/mo</span></div>
+        <div class="price-desc">Try it out.</div>
+        <ul class="price-features">
+          <li>3 parlay builds per week</li>
+          <li>Text input only (type your sport)</li>
+          <li>AI-powered picks with real odds data</li>
+          <li>Confidence ratings & risk analysis</li>
+          <li>Custom bet amount & target payout</li>
+        </ul>
+        <button class="price-btn" style="background:var(--surface-2);color:var(--text);" onclick="currentUser?showPage('analyze'):showAuth('signup')">START FREE</button>
+      </div>
+      <div class="price-card featured">
+        <div class="price-name">PRO</div>
+        <div class="price-amount">$14.99<span>/mo</span></div>
+        <div class="price-desc">Serious bettors.</div>
+        <ul class="price-features">
+          <li>Unlimited parlay builds</li>
+          <li>Screenshot upload — analyze any odds</li>
+          <li>Analyze Pick — full breakdown of any bet</li>
+          <li>Deeper AI analysis with injury data</li>
+          <li>Correlation detection</li>
+          <li>All sports covered</li>
+        </ul>
+        <button class="price-btn" style="background:linear-gradient(135deg,var(--purple),var(--blue));color:#fff;" onclick="currentUser?showPage('analyze'):showAuth('signup')">START PRO</button>
+      </div>
+      <div class="price-card" style="border-color:var(--cyan);">
+        <div style="position:absolute;top:-12px;left:50%;transform:translateX(-50%);font-family:'JetBrains Mono';font-size:9px;letter-spacing:2px;background:linear-gradient(135deg,var(--purple),var(--cyan));color:#fff;padding:4px 14px;border-radius:10px;white-space:nowrap;">UNLIMITED</div>
+        <div class="price-name">ULTRA</div>
+        <div class="price-amount">$29.99<span>/mo</span></div>
+        <div class="price-desc">Every game. Every edge.</div>
+        <ul class="price-features">
+          <li>Everything in Pro</li>
+          <li>Premium AI model (best analysis)</li>
+          <li>Player prop analysis</li>
+          <li>Track record dashboard</li>
+          <li>Multi-sport parlays</li>
+          <li>Priority support</li>
+        </ul>
+        <button class="price-btn" style="background:linear-gradient(135deg,var(--purple),var(--cyan));color:#fff;" onclick="currentUser?showPage('analyze'):showAuth('signup')">START ULTRA</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FAQ -->
+  <div class="faq">
+    <div class="section-heading">QUESTIONS</div>
+    <div class="faq-item"><div class="faq-q">What sports do you cover?</div><div class="faq-a">NBA, NFL, MLB, and NHL. We analyze any game or player prop you upload.</div></div>
+    <div class="faq-item"><div class="faq-q">How does it work?</div><div class="faq-a">Upload a screenshot of tonight's games or odds from any betting app. Our AI reads the matchups, searches for current stats and injuries, then builds the optimal parlay or analyzes your pick.</div></div>
+    <div class="faq-item"><div class="faq-q">Is this gambling advice?</div><div class="faq-a">No. ParlAI is for entertainment and informational purposes only. We provide analysis and predictions — what you do with them is your decision. Always gamble responsibly. Must be 21+ to bet.</div></div>
+    <div class="faq-item"><div class="faq-q">How accurate is it?</div><div class="faq-a">Every prediction includes a confidence score so you know how strong each pick is. We use real-time data including current records, injuries, and recent form. We track our record publicly.</div></div>
+  </div>
+</div>
+
+<!-- ANALYZE PAGE -->
+<div id="page-analyze" class="page">
+  <div class="analyze-container">
+    <div class="analyze-header">
+      <h1>PARL<span class="purple">AI</span> ENGINE</h1>
+    </div>
+    <div id="usageBar" class="usage-bar">Sign in to start building parlays</div>
+    <div class="mode-tabs">
+      <button class="mode-tab active" onclick="switchMode('parlay')">🎯 BUILD PARLAY</button>
+      <button class="mode-tab" style="position:relative;" onclick="if(currentUser && (currentUser.plan==='pro'||currentUser.plan==='ultra')){switchMode('single')}else{alert('Analyze Pick is a Pro feature. Upgrade to access it.')}">📊 ANALYZE PICK <span style="font-family:'JetBrains Mono';font-size:8px;letter-spacing:1px;background:linear-gradient(135deg,var(--purple),var(--blue));color:#fff;padding:2px 6px;border-radius:6px;margin-left:6px;vertical-align:middle;">PRO</span></button>
+    </div>
+
+    <!-- PARLAY MODE -->
+    <div id="mode-parlay" class="mode-content active">
+      <div class="analyze-layout">
+        <div class="input-panel">
+          <div class="input-title">🎯 BUILD MY PARLAY</div>
+          
+          <div style="font-size:12px;color:var(--dim);margin-bottom:14px;line-height:1.5;">Tell us what sport and we'll build your optimal parlay.</div>
+
+          <div class="input-label">What do you want?</div>
+          <input type="text" class="input-field" id="parlayTextInput" placeholder='e.g. "NBA tonight" or "NHL tonight"' />
+
+          <!-- Screenshot - PRO ONLY -->
+          <div style="position:relative;margin:12px 0;">
+            <div style="border:2px dashed rgba(255,255,255,0.06);border-radius:12px;padding:20px;text-align:center;opacity:0.4;pointer-events:none;">
+              <div style="font-size:20px;margin-bottom:6px;">📤</div>
+              <div style="font-family:'Bebas Neue';font-size:13px;letter-spacing:1px;">Upload Odds Screenshot</div>
+            </div>
+            <div style="position:absolute;top:8px;right:8px;font-family:'JetBrains Mono';font-size:9px;letter-spacing:1.5px;background:linear-gradient(135deg,var(--purple),var(--blue));color:#fff;padding:3px 10px;border-radius:10px;">PRO</div>
+          </div>
+          <!-- Hidden file input for future Pro use -->
+          <div class="upload-zone" id="parlayUploadZone" style="display:none;">
+            <div id="parlayUploadPlaceholder"></div>
+            <img id="parlayPreviewImg" style="display:none;" />
+          </div>
+          <input type="file" id="parlayFileInput" style="display:none;" accept="image/*" />
+
+          <div class="input-label" style="margin-top:12px;">How many legs?</div>
+          <select class="input-field" id="legCount" style="appearance:auto;cursor:pointer;">
+            <option value="3">3-Leg Parlay</option>
+            <option value="4" selected>4-Leg Parlay</option>
+            <option value="5">5-Leg Parlay</option>
+            <option value="6">6-Leg Parlay</option>
+          </select>
+
+          <div style="display:flex;gap:10px;">
+            <div style="flex:1;">
+              <div class="input-label">Bet Amount</div>
+              <input type="number" class="input-field" id="betAmount" placeholder="10" value="10" min="1" max="10000" style="appearance:textfield;" />
+            </div>
+            <div style="flex:1;">
+              <div class="input-label">Target Payout</div>
+              <select class="input-field" id="targetPayout" style="appearance:auto;cursor:pointer;">
+                <option value="safe">~2x (Safe)</option>
+                <option value="moderate" selected>~5x (Moderate)</option>
+                <option value="aggressive">~10x (Aggressive)</option>
+                <option value="yolo">~20x+ (High Risk)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="input-label">Any Context (optional)</div>
+          <input type="text" class="input-field" id="parlayContext" placeholder="e.g. NBA only, avoid underdogs" />
+          <button class="analyze-btn" id="parlayBtn" disabled onclick="runParlay()">BUILD MY PARLAY</button>
+        </div>
+        <div class="results-panel" id="parlayResults">
+          <div class="results-empty">
+            <div class="results-empty-icon">🎯</div>
+            <h3>READY TO BUILD</h3>
+            <p>Upload tonight's games and ParlAI will find the best parlay for you.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SINGLE MODE -->
+    <div id="mode-single" class="mode-content">
+      <div class="analyze-layout">
+        <div class="input-panel">
+          <div class="input-title">📊 ANALYZE A PICK</div>
+          <div style="font-size:12px;color:var(--dim);margin-bottom:14px;line-height:1.5;">Screenshot any bet — spread, moneyline, player prop, whatever — and get a full AI breakdown.</div>
+          <div class="upload-zone" id="singleUploadZone" onclick="document.getElementById('singleFileInput').click()">
+            <div id="singleUploadPlaceholder">
+              <div style="font-size:36px;margin-bottom:12px;opacity:0.5;">📤</div>
+              <div style="font-family:'Bebas Neue';font-size:15px;letter-spacing:1px;">Upload Bet Screenshot</div>
+              <div style="font-size:12px;color:var(--dim);">Any odds, spread, prop, or matchup</div>
+            </div>
+            <img id="singlePreviewImg" style="display:none;max-width:100%;border-radius:10px;" />
+          </div>
+          <input type="file" id="singleFileInput" style="display:none;" accept="image/*" />
+          <div class="input-label">Any Context (optional)</div>
+          <input type="text" class="input-field" id="singleContext" placeholder="e.g. LeBron is out tonight" />
+          <button class="analyze-btn" id="singleBtn" disabled onclick="runSingle()">ANALYZE PICK</button>
+        </div>
+        <div class="results-panel" id="singleResults">
+          <div class="results-empty">
+            <div class="results-empty-icon">📊</div>
+            <h3>READY FOR ANALYSIS</h3>
+            <p>Upload a bet screenshot to get the full AI breakdown.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// === AUTH & USER STATE ===
+let currentUser = null; // { id, email, plan, parlays_used, limits }
+let authMode = 'signup'; // 'signup' or 'login'
+
+// Check for saved session on page load
+async function initAuth() {
+  // Check for Supabase email confirmation token in URL hash
+  const hash = window.location.hash;
+  if (hash && hash.includes('access_token')) {
+    try {
+      const params = new URLSearchParams(hash.substring(1));
+      const accessToken = params.get('access_token');
+      const refreshToken = params.get('refresh_token');
+      if (accessToken) {
+        localStorage.setItem('parlai_token', accessToken);
+        if (refreshToken) localStorage.setItem('parlai_refresh', refreshToken);
+        // Clean URL
+        window.history.replaceState(null, '', window.location.pathname);
+      }
+    } catch(e) { console.log('Token parse error:', e); }
+  }
+
+  const token = localStorage.getItem('parlai_token');
+  if (!token) return;
+  try {
+    const res = await fetch('/api/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'get_user', access_token: token })
+    });
+    const data = await res.json();
+    if (data.success) {
+      currentUser = data.user;
+      updateUI();
+    } else {
+      // Token expired — try refresh
+      const refreshToken = localStorage.getItem('parlai_refresh');
+      if (refreshToken) {
+        const refreshRes = await fetch(`${getSupabaseUrl()}/auth/v1/token?grant_type=refresh_token`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'apikey': getSupabaseKey() },
+          body: JSON.stringify({ refresh_token: refreshToken })
+        });
+        const refreshData = await refreshRes.json();
+        if (refreshData.access_token) {
+          localStorage.setItem('parlai_token', refreshData.access_token);
+          if (refreshData.refresh_token) localStorage.setItem('parlai_refresh', refreshData.refresh_token);
+          // Retry get_user
+          const retryRes = await fetch('/api/auth', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'get_user', access_token: refreshData.access_token })
+          });
+          const retryData = await retryRes.json();
+          if (retryData.success) { currentUser = retryData.user; updateUI(); return; }
+        }
+      }
+      localStorage.removeItem('parlai_token');
+      localStorage.removeItem('parlai_refresh');
+    }
+  } catch(e) {
+    console.log('Auth check failed:', e);
+  }
+}
+
+function getSupabaseUrl() { return 'https://aeagnywacrqnusdmxget.supabase.co'; }
+function getSupabaseKey() { return 'sb_publishable_gRn3FOCddI8NjxXUjXf3Eg_9RybIAtJ'; }
+
+function showAuth(mode) {
+  authMode = mode || 'signup';
+  document.getElementById('authTitle').textContent = authMode === 'signup' ? 'SIGN UP' : 'LOG IN';
+  document.getElementById('authSubtitle').textContent = authMode === 'signup' ? 'Create your free ParlAI account' : 'Welcome back';
+  document.getElementById('authSubmitBtn').textContent = authMode === 'signup' ? 'SIGN UP' : 'LOG IN';
+  document.getElementById('authSwitchText').innerHTML = authMode === 'signup'
+    ? 'Already have an account? <span onclick="toggleAuthMode()">Log in</span>'
+    : 'Need an account? <span onclick="toggleAuthMode()">Sign up free</span>';
+  document.getElementById('authError').style.display = 'none';
+  document.getElementById('authOverlay').classList.add('visible');
+}
+
+function closeAuth() {
+  document.getElementById('authOverlay').classList.remove('visible');
+  document.getElementById('authEmail').value = '';
+  document.getElementById('authPassword').value = '';
+}
+
+function toggleAuthMode() {
+  showAuth(authMode === 'signup' ? 'login' : 'signup');
+}
+
+async function doAuth() {
+  const email = document.getElementById('authEmail').value.trim();
+  const password = document.getElementById('authPassword').value;
+  const errorEl = document.getElementById('authError');
+  const btn = document.getElementById('authSubmitBtn');
+
+  if (!email || !password) { errorEl.textContent = 'Please enter email and password'; errorEl.style.display = 'block'; return; }
+  if (password.length < 6) { errorEl.textContent = 'Password must be at least 6 characters'; errorEl.style.display = 'block'; return; }
+
+  btn.disabled = true; btn.textContent = authMode === 'signup' ? 'CREATING...' : 'LOGGING IN...';
+  errorEl.style.display = 'none';
+
+  try {
+    const res = await fetch('/api/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: authMode, email, password })
+    });
+    const data = await res.json();
+
+    if (data.error) throw new Error(data.error);
+
+    if (authMode === 'signup' && (!data.session || !data.session.access_token)) {
+      // Email confirmation required
+      errorEl.textContent = 'Check your email to confirm your account, then log in.';
+      errorEl.style.display = 'block';
+      errorEl.style.color = 'var(--green)';
+      btn.disabled = false; btn.textContent = 'SIGN UP';
+      return;
+    }
+
+    // Save session
+    localStorage.setItem('parlai_token', data.session.access_token);
+    if (data.session.refresh_token) localStorage.setItem('parlai_refresh', data.session.refresh_token);
+
+    // Fetch full user info
+    const userRes = await fetch('/api/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'get_user', access_token: data.session.access_token })
+    });
+    const userData = await userRes.json();
+    if (userData.success) currentUser = userData.user;
+
+    closeAuth();
+    updateUI();
+    showPage('analyze');
+  } catch(err) {
+    errorEl.textContent = err.message;
+    errorEl.style.display = 'block';
+    errorEl.style.color = 'var(--red)';
+  }
+  btn.disabled = false; btn.textContent = authMode === 'signup' ? 'SIGN UP' : 'LOG IN';
+}
+
+function doLogout() {
+  localStorage.removeItem('parlai_token');
+  localStorage.removeItem('parlai_refresh');
+  currentUser = null;
+  updateUI();
+  showPage('landing');
+}
+
+function updateUI() {
+  const loggedOut = document.getElementById('navLoggedOut');
+  const loggedIn = document.getElementById('navLoggedIn');
+
+  if (currentUser) {
+    loggedOut.style.display = 'none';
+    loggedIn.style.display = 'block';
+    document.getElementById('navEmail').textContent = currentUser.email;
+    const badge = document.getElementById('navPlanBadge');
+    badge.textContent = currentUser.plan.toUpperCase();
+    badge.className = 'user-plan-badge ' + currentUser.plan;
+
+    // Update usage bar in analyze page
+    const usageBar = document.getElementById('usageBar');
+    if (usageBar) {
+      const limits = currentUser.limits;
+      if (limits.parlays_per_period === -1) {
+        usageBar.innerHTML = '<span>ULTRA</span> — Unlimited parlays';
+      } else {
+        usageBar.innerHTML = `<span>${currentUser.parlays_used}/${limits.parlays_per_period}</span> parlays used this ${limits.period}`;
+      }
+    }
+  } else {
+    loggedOut.style.display = 'block';
+    loggedIn.style.display = 'none';
+  }
+}
+
+function getUserTier() {
+  return currentUser ? currentUser.plan : 'free';
+}
+
+function canBuildParlay() {
+  if (!currentUser) return false;
+  const limits = currentUser.limits;
+  if (limits.parlays_per_period === -1) return true;
+  return currentUser.parlays_used < limits.parlays_per_period;
+}
+
+async function incrementUsage() {
+  const token = localStorage.getItem('parlai_token');
+  if (!token) return;
+  try {
+    const res = await fetch('/api/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'increment_usage', access_token: token })
+    });
+    const data = await res.json();
+    if (data.success && currentUser) {
+      currentUser.parlays_used = data.used;
+      updateUI();
+    }
+  } catch(e) { console.log('Usage increment failed'); }
+}
+
+// Init on page load
+initAuth();
+
+// === PAGE & MODE SWITCHING ===
+
+function showPage(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  window.scrollTo(0, 0);
+  // Refresh auth UI when switching pages
+  updateUI();
+}
+
+function switchMode(mode) {
+  document.querySelectorAll('.mode-content').forEach(m => m.classList.remove('active'));
+  document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('mode-' + mode).classList.add('active');
+  event && event.target && event.target.classList.add('active');
+  if (!event || !event.target) {
+    document.querySelectorAll('.mode-tab')[mode === 'parlay' ? 0 : 1].classList.add('active');
+  }
+}
+
+// Upload handlers — with canvas resize for mobile screenshots
+function processImage(file) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const MAX = 1200;
+          let w = img.width, h = img.height;
+          if (w > MAX || h > MAX) {
+            if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
+            else { w = Math.round(w * MAX / h); h = MAX; }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+          resolve({ dataUrl, base64: dataUrl.split(',')[1], mediaType: 'image/jpeg' });
+        } catch(err) {
+          // Fallback: use original file as-is
+          const raw = e.target.result;
+          const mType = file.type || 'image/jpeg';
+          resolve({ dataUrl: raw, base64: raw.split(',')[1], mediaType: mType });
+        }
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function setupUpload(zoneId, inputId, previewId, placeholderId, btnId) {
+  const zone = document.getElementById(zoneId);
+  const input = document.getElementById(inputId);
+  const preview = document.getElementById(previewId);
+  const placeholder = document.getElementById(placeholderId);
+  const btn = document.getElementById(btnId);
+  let base64 = null, mediaType = 'image/jpeg';
+
+  input.addEventListener('change', async () => {
+    const file = input.files[0]; if (!file) return;
+    const result = await processImage(file);
+    preview.src = result.dataUrl; preview.style.display = 'block';
+    placeholder.style.display = 'none'; zone.classList.add('has-image');
+    base64 = result.base64;
+    mediaType = result.mediaType;
+    btn.disabled = false;
+  });
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.style.borderColor = 'var(--purple)'; });
+  zone.addEventListener('dragleave', () => { zone.style.borderColor = ''; });
+  zone.addEventListener('drop', e => { e.preventDefault(); zone.style.borderColor = ''; if(e.dataTransfer.files[0]) { input.files = e.dataTransfer.files; input.dispatchEvent(new Event('change')); }});
+
+  return () => ({ base64, mediaType });
+}
+
+const getParlayImg = setupUpload('parlayUploadZone','parlayFileInput','parlayPreviewImg','parlayUploadPlaceholder','parlayBtn');
+const getSingleImg = setupUpload('singleUploadZone','singleFileInput','singlePreviewImg','singleUploadPlaceholder','singleBtn');
+
+// Also enable parlay button when text is typed
+const parlayTextInput = document.getElementById('parlayTextInput');
+parlayTextInput.addEventListener('input', () => {
+  document.getElementById('parlayBtn').disabled = !parlayTextInput.value.trim();
+});
+
+// Safe API response parser
+async function safeParseResponse(res) {
+  const text = await res.text();
+  if (res.status === 504) throw new Error('Request timed out — try fewer legs or try again.');
+  let data;
+  try { data = JSON.parse(text); } catch(e) {
+    if (text.includes('rate limit')) throw new Error('Rate limited — wait 60 seconds and try again.');
+    if (text.includes('timed out') || text.includes('FUNCTION_INVOCATION_TIMEOUT')) throw new Error('Request timed out — try fewer legs or try again.');
+    throw new Error('Server error — wait a moment and try again.');
+  }
+  if (data.error) {
+    const msg = typeof data.error === 'string' ? data.error : data.error.message || 'Unknown error';
+    if (msg.includes('rate limit')) throw new Error('Rate limited — wait 60 seconds and try again.');
+    if (msg.includes('credit') || msg.includes('billing')) throw new Error('API credits exhausted — contact the admin.');
+    throw new Error(msg);
+  }
+  return data;
+}
+
+// Parlay Builder
+async function runParlay() {
+  // Auth check — must be logged in
+  if (!currentUser) {
+    showAuth('signup');
+    return;
+  }
+
+  // Usage check
+  if (!canBuildParlay()) {
+    const limits = currentUser.limits;
+    document.getElementById('parlayResults').innerHTML = `<div class="error-box"><h3>LIMIT REACHED</h3><p>You've used ${currentUser.parlays_used}/${limits.parlays_per_period} parlays this ${limits.period}. <span style="color:var(--purple);cursor:pointer;" onclick="document.getElementById('pricing').scrollIntoView({behavior:'smooth'});showPage('landing');">Upgrade your plan</span> for more.</p></div>`;
+    return;
+  }
+
+  const {base64, mediaType} = getParlayImg();
+  const textInput = document.getElementById('parlayTextInput').value.trim();
+  if (!base64 && !textInput) return;
+  const legs = document.getElementById('legCount').value;
+  const betAmount = document.getElementById('betAmount').value || '10';
+  const targetPayout = document.getElementById('targetPayout').value;
+  const context = document.getElementById('parlayContext').value.trim();
+  const panel = document.getElementById('parlayResults');
+  const btn = document.getElementById('parlayBtn');
+
+  const riskProfiles = {
+    safe: { label: 'Safe (~2x)', minOdds: '+80', maxOdds: '+250', strategy: 'Pick strong favorites on spreads and totals. Keep combined odds between +80 and +250. Prioritize high-confidence picks.' },
+    moderate: { label: 'Moderate (~5x)', minOdds: '+300', maxOdds: '+600', strategy: 'Mix favorites with slight underdogs. Include spreads and totals, not just moneylines. Target combined odds between +300 and +600. Find VALUE — don\'t just pick the 4 biggest favorites.' },
+    aggressive: { label: 'Aggressive (~10x)', minOdds: '+700', maxOdds: '+1200', strategy: 'Include at least 1-2 underdogs or plus-money picks. Mix moneylines, spreads, totals, and props. Target combined odds between +700 and +1200. Look for upset potential backed by data.' },
+    yolo: { label: 'High Risk (~20x+)', minOdds: '+1500', maxOdds: '+3000', strategy: 'Include multiple underdogs and plus-money picks. Take risks backed by matchup edges. Target combined odds +1500 or higher. This is a long-shot parlay — find the best data-backed upsets.' }
+  };
+  const risk = riskProfiles[targetPayout];
+
+  panel.innerHTML = '<div class="loading-state"><div class="spinner"></div><div style="font-family:Bebas Neue;font-size:18px;letter-spacing:1.5px;color:var(--muted);">BUILDING YOUR PARLAY...</div><div style="font-size:12px;color:var(--dim);margin-top:6px;">Analyzing matchups and finding value. ~10 seconds.</div></div>';
+  btn.disabled = true; btn.textContent = 'BUILDING...';
+
+  const prompt = `You are ParlAI, an elite AI sports betting analyst.
+
+${base64 ? 'The user uploaded a screenshot of odds/games. Read the image to identify available games and odds.' : `The user wants a parlay for: "${textInput}".`}
+
+BET DETAILS: $${betAmount} bet, targeting ${risk.label} payout.
+STRATEGY: ${risk.strategy}
+
+IMPORTANT RULES:
+- Do NOT just pick the moneyline favorites of the first ${legs} games. That's lazy and gives bad odds.
+- Mix bet types: spreads, totals (over/under), and moneylines.
+- Find actual VALUE — games where the line doesn't reflect the true probability.
+- If the data shows all games are heavy favorites, use spreads and totals to hit the target odds range.
+
+Build a ${legs}-leg parlay. Mix bet types (ML, spreads, totals, props) when it helps. Favor picks with strong data edges. Don't force weak legs.
+
+Respond with ONLY raw JSON. No markdown. No backticks. No text before or after:
+{
+  "title": "Brief parlay title",
+  "total_legs": ${legs},
+  "combined_odds": "+XXX (must be between ${risk.minOdds} and ${risk.maxOdds})",
+  "bet_amount": "$${betAmount}",
+  "ten_dollar_payout": "$XX.XX (calculate: bet amount × odds)",
+  "overall_confidence": 0-100,
+  "overall_grade": "A+ through F",
+  "legs": [
+    {
+      "leg_number": 1,
+      "pick": "Team/Player + bet type (use spreads and totals, not just ML)",
+      "game": "Team vs Team",
+      "odds": "-110 or +150 etc",
+      "confidence": 0-100,
+      "reasoning": "2-3 sentences with SPECIFIC data. Cite numbers.",
+      "key_stat": "Single most compelling stat",
+      "risk": "What could bust this leg"
+    }
+  ],
+  "correlation_notes": "Are any legs correlated? Flag dangerous overlap.",
+  "parlay_risk_factors": [
+    {"title": "risk", "explanation": "1-2 sentences", "severity": "High|Medium|Low"}
+  ],
+  "best_case": "1-2 sentences if everything hits",
+  "worst_leg": "Weakest leg and why",
+  "tags": ["sport", "risk_level"]
+}
+
+Confidence scale: 50%=coin flip, 70%=solid edge, 85%+=very rare. Use real stats from search. ONLY output JSON.`;
+
+  let content = [];
+  if (base64) {
+    content.push({type:'image',source:{type:'base64',media_type:mediaType,data:base64}});
+  }
+  content.push({type:'text',text: prompt + (context ? `\n\nUser context: ${context}` : '')});
+
+  try {
+    const res = await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:3000,user_tier:getUserTier(),messages:[{role:'user',content}]})});
+    const data = await safeParseResponse(res);
+    const texts = data.content.filter(b=>b.type==='text').map(b=>b.text).join('\n');
+    const clean = texts.replace(/```json|```/g,'').trim();
+    let parsed = null;
+    try { parsed = JSON.parse(clean); } catch(e) {
+      // Try to extract JSON from mixed text — find balanced braces
+      let depth = 0, start = -1;
+      for (let i = 0; i < clean.length; i++) {
+        if (clean[i] === '{') { if (depth === 0) start = i; depth++; }
+        else if (clean[i] === '}') { depth--; if (depth === 0 && start !== -1) { try { const candidate = JSON.parse(clean.substring(start, i + 1)); if (candidate.legs || candidate.title) { parsed = candidate; break; } } catch(e2) {} start = -1; } }
+      }
+    }
+    if(!parsed) throw new Error('No parlay found — AI may still be searching. Try again.');
+    renderParlay(parsed);
+    incrementUsage();
+  } catch(err) {
+    panel.innerHTML = `<div class="error-box"><h3>BUILD FAILED</h3><p>${err.message}</p></div>`;
+  }
+  btn.disabled = false; btn.textContent = 'BUILD MY PARLAY';
+}
+
+function renderParlay(r) {
+  const confColor = r.overall_confidence >= 60 ? 'var(--green)' : r.overall_confidence >= 40 ? 'var(--yellow)' : 'var(--red)';
+  let h = '<div class="results-live">';
+
+  // Parlay Card
+  h += `<div class="parlay-result">
+    <div class="parlay-result-header">
+      <div>
+        <div style="font-family:'JetBrains Mono';font-size:10px;letter-spacing:1.5px;color:var(--purple);text-transform:uppercase;">AI-BUILT · ${r.total_legs}-LEG PARLAY</div>
+        <div style="font-family:'Bebas Neue';font-size:24px;letter-spacing:1px;margin-top:4px;">${r.title}</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-family:'Bebas Neue';font-size:36px;color:var(--green);">${r.combined_odds}</div>
+        <div style="font-family:'JetBrains Mono';font-size:10px;color:var(--dim);">${r.bet_amount || '$10'} → ${r.ten_dollar_payout}</div>
+      </div>
+    </div>`;
+
+  // Legs
+  r.legs.forEach(leg => {
+    const lc = leg.confidence >= 70 ? 'var(--green)' : leg.confidence >= 55 ? 'var(--yellow)' : 'var(--red)';
+    h += `<div class="parlay-result-leg">
+      <div class="leg-header">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="width:28px;height:28px;border-radius:50%;background:var(--purple-glow);color:var(--purple);display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue';font-size:14px;">${leg.leg_number}</div>
+          <div>
+            <div class="leg-pick-name">${leg.pick}</div>
+            <div style="font-size:11px;color:var(--dim);">${leg.game} · ${leg.odds}</div>
+          </div>
+        </div>
+        <div class="leg-confidence" style="color:${lc};">${leg.confidence}%</div>
+      </div>
+      <div class="leg-reasoning">${leg.reasoning}</div>
+      <div style="display:flex;gap:16px;margin-top:8px;">
+        <div style="font-family:'JetBrains Mono';font-size:10px;color:var(--cyan);">📊 ${leg.key_stat}</div>
+      </div>
+      <div style="font-size:11px;color:var(--red);margin-top:6px;opacity:0.7;">⚠ ${leg.risk}</div>
+    </div>`;
+  });
+
+  // Footer
+  h += `<div style="display:flex;align-items:center;justify-content:space-between;margin-top:20px;padding-top:16px;border-top:1px solid var(--border);flex-wrap:wrap;gap:12px;">
+    <div><div style="font-family:'JetBrains Mono';font-size:9px;color:var(--dim);letter-spacing:1px;text-transform:uppercase;">Parlay Confidence</div><div style="font-family:'Bebas Neue';font-size:32px;color:${confColor};">${r.overall_confidence}%</div></div>
+    <div><div style="font-family:'JetBrains Mono';font-size:9px;color:var(--dim);letter-spacing:1px;text-transform:uppercase;">Grade</div><div style="font-family:'Bebas Neue';font-size:32px;color:${confColor};">${r.overall_grade}</div></div>
+    <div><div style="font-family:'JetBrains Mono';font-size:9px;color:var(--dim);letter-spacing:1px;text-transform:uppercase;">Payout (${r.bet_amount || '$10'})</div><div style="font-family:'Bebas Neue';font-size:32px;color:var(--green);">${r.ten_dollar_payout}</div></div>
+  </div>`;
+  h += '</div>';
+
+  // Correlation
+  if(r.correlation_notes) {
+    h += `<div class="section-panel"><div class="section-title">🔗 CORRELATION CHECK</div><div style="font-size:13px;color:rgba(255,255,255,0.7);line-height:1.6;">${r.correlation_notes}</div></div>`;
+  }
+
+  // Risks
+  if(r.parlay_risk_factors) {
+    h += `<div class="section-panel"><div class="section-title">⚠️ PARLAY RISKS</div>`;
+    r.parlay_risk_factors.forEach((f,i) => {
+      const sc = f.severity==='High'?'var(--red)':f.severity==='Medium'?'var(--yellow)':'var(--green)';
+      h += `<div class="reason-item"><div class="reason-num" style="background:rgba(239,68,68,0.15);color:var(--red);">${i+1}</div><div><div class="reason-title">${f.title}</div><div class="reason-text">${f.explanation}</div><span style="font-family:'JetBrains Mono';font-size:9px;padding:2px 8px;border-radius:10px;background:rgba(255,255,255,0.05);color:${sc};text-transform:uppercase;display:inline-block;margin-top:6px;">${f.severity}</span></div></div>`;
+    });
+    h += '</div>';
+  }
+
+  // Best/Worst
+  if(r.best_case || r.worst_leg) {
+    h += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">`;
+    if(r.best_case) h += `<div class="section-panel" style="border-color:rgba(34,197,94,0.15);"><div class="section-title" style="color:var(--green);">🎉 BEST CASE</div><div style="font-size:13px;color:rgba(255,255,255,0.7);line-height:1.6;">${r.best_case}</div></div>`;
+    if(r.worst_leg) h += `<div class="section-panel" style="border-color:rgba(239,68,68,0.15);"><div class="section-title" style="color:var(--red);">⚠️ WEAKEST LEG</div><div style="font-size:13px;color:rgba(255,255,255,0.7);line-height:1.6;">${r.worst_leg}</div></div>`;
+    h += '</div>';
+  }
+
+  // Tags
+  if(r.tags) h += `<div class="tags-row">${r.tags.map(t=>`<div class="tag">${t}</div>`).join('')}</div>`;
+
+  h += `<div class="disclaimer"><strong>⚠ DISCLAIMER:</strong> This is for entertainment and informational purposes only. Not gambling advice. Sports outcomes are unpredictable. Always gamble responsibly. Must be 21+ to place sports bets.</div>`;
+  h += '</div>';
+  document.getElementById('parlayResults').innerHTML = h;
+}
+
+// Single Pick Analysis (same as before)
+async function runSingle() {
+  const {base64, mediaType} = getSingleImg();
+  if(!base64) return;
+  const context = document.getElementById('singleContext').value.trim();
+  const panel = document.getElementById('singleResults');
+  const btn = document.getElementById('singleBtn');
+
+  panel.innerHTML = '<div class="loading-state"><div class="spinner"></div><div style="font-family:Bebas Neue;font-size:18px;letter-spacing:1.5px;color:var(--muted);">ANALYZING PICK...</div><div style="font-size:12px;color:var(--dim);margin-top:6px;">15-30 seconds.</div></div>';
+  btn.disabled = true; btn.textContent = 'ANALYZING...';
+
+  const prompt = `You are ParlAI's single-pick analysis engine.
+
+The user uploaded a screenshot of a bet. Read the image to identify the matchup, bet type, line, and odds.
+
+RESEARCH FIRST via web search: current odds, team/player records and recent form, injury reports, head-to-head history, and situational factors.
+
+Be honest — if the data doesn't support the pick, give it a low grade. Cite specific stats, not vague statements.
+
+Respond with ONLY raw JSON. No markdown. No backticks. No text before or after:
+{
+  "matchup": "Team vs Team or Player Prop",
+  "sport": "NBA|NFL|MLB|NHL|NCAAB|Soccer",
+  "pick": {
+    "winner": "The side/pick from the screenshot",
+    "confidence_percentage": 0-100,
+    "spread": "Current spread or N/A",
+    "over_under": "Current O/U or N/A",
+    "projected_score": "Projected score or stat line",
+    "one_liner": "One sharp sentence on why this hits or doesn't"
+  },
+  "grades": {
+    "overall": "A+ to F",
+    "matchup_edge": {"score": 0-100, "summary": "1-2 sentences with specific stats"},
+    "recent_form": {"score": 0-100, "summary": "1-2 sentences citing recent records"},
+    "injury_impact": {"score": 0-100, "summary": "1-2 sentences naming key injuries"},
+    "historical_trend": {"score": 0-100, "summary": "1-2 sentences on H2H or ATS trends"},
+    "situational_spot": {"score": 0-100, "summary": "1-2 sentences on rest, travel, motivation"}
+  },
+  "reasons_for_pick": [
+    {"title": "Reason", "explanation": "2-3 sentences with specific stats"},
+    {"title": "Reason", "explanation": "2-3 sentences with specific stats"},
+    {"title": "Reason", "explanation": "2-3 sentences with specific stats"}
+  ],
+  "risk_factors": [
+    {"title": "Risk", "explanation": "1-2 sentences", "severity": "High|Medium|Low"},
+    {"title": "Risk", "explanation": "1-2 sentences", "severity": "High|Medium|Low"}
+  ],
+  "smart_plays": ["Alt/hedge suggestion", "Line shopping tip", "Bankroll advice"],
+  "tags": ["sport", "bet_type", "confidence_level"]
+}
+
+Confidence: 50%=coin flip, 70%=solid, 85%+=very rare. Return exactly 3 reasons and 2 risks. ONLY output JSON.`;
+
+  let content = [
+    {type:'image',source:{type:'base64',media_type:mediaType,data:base64}},
+    {type:'text',text:prompt+(context?`\n\nContext: ${context}`:'')}
+  ];
+
+  try {
+    const res = await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:3000,user_tier:getUserTier(),messages:[{role:'user',content}]})});
+    const data = await safeParseResponse(res);
+    const texts = data.content.filter(b=>b.type==='text').map(b=>b.text).join('\n');
+    const clean = texts.replace(/```json|```/g,'').trim();
+    let parsed = null;
+    try { parsed = JSON.parse(clean); } catch(e) {
+      let depth = 0, start = -1;
+      for (let i = 0; i < clean.length; i++) {
+        if (clean[i] === '{') { if (depth === 0) start = i; depth++; }
+        else if (clean[i] === '}') { depth--; if (depth === 0 && start !== -1) { try { const candidate = JSON.parse(clean.substring(start, i + 1)); if (candidate.matchup || candidate.pick) { parsed = candidate; break; } } catch(e2) {} start = -1; } }
+      }
+    }
+    if(!parsed) throw new Error('No analysis found — AI may still be searching. Try again.');
+    renderSingle(parsed);
+  } catch(err) {
+    panel.innerHTML = `<div class="error-box"><h3>ANALYSIS FAILED</h3><p>${err.message}</p></div>`;
+  }
+  btn.disabled = false; btn.textContent = 'ANALYZE PICK';
+}
+
+function gc(s){return s>=80?'var(--green)':s>=60?'var(--blue-bright)':s>=40?'var(--yellow)':'var(--red)';}
+function gb(s){return s>=80?'rgba(34,197,94,0.15)':s>=60?'rgba(46,124,246,0.15)':s>=40?'rgba(245,158,11,0.15)':'rgba(239,68,68,0.15)';}
+function og(g){const m={'A+':97,'A':93,'A-':90,'B+':87,'B':83,'B-':80,'C+':77,'C':73,'C-':70,'D':60,'F':40};return m[g]||70;}
+
+function renderSingle(r) {
+  const conf = r.pick.confidence_percentage;
+  const pickColor = conf>=60?'var(--green)':conf>=45?'var(--yellow)':'var(--red)';
+  const ogs = og(r.grades.overall);
+  let h = '<div class="results-live">';
+
+  h += `<div style="text-align:center;margin-bottom:20px;"><div style="font-family:'Bebas Neue';font-size:28px;">${r.matchup}</div><div style="font-family:'JetBrains Mono';font-size:11px;color:var(--dim);">${r.sport}</div></div>`;
+
+  h += `<div class="verdict-banner" style="background:linear-gradient(135deg,rgba(168,85,247,0.08),rgba(46,124,246,0.08));border:1px solid rgba(168,85,247,0.2);">
+    <div class="verdict-left"><div class="verdict-signal" style="background:${pickColor};color:#080C14;">${conf}%</div>
+    <div><div style="font-family:'Bebas Neue';font-size:22px;color:${pickColor};">${r.pick.winner}</div><div style="font-size:13px;color:rgba(255,255,255,0.7);">${r.pick.one_liner}</div></div></div>
+    <div class="verdict-stats">
+      <div><div class="v-stat-label">Spread</div><div class="v-stat-value">${r.pick.spread||'N/A'}</div></div>
+      <div><div class="v-stat-label">O/U</div><div class="v-stat-value">${r.pick.over_under||'N/A'}</div></div>
+    </div>
+  </div>`;
+
+  if(r.tags) h += `<div class="tags-row">${r.tags.map(t=>`<div class="tag">${t}</div>`).join('')}</div>`;
+
+  const grades=[{key:'matchup_edge',label:'Matchup Edge'},{key:'recent_form',label:'Recent Form'},{key:'injury_impact',label:'Injury Impact'},{key:'historical_trend',label:'Historical Trend'},{key:'situational_spot',label:'Situational Spot'}];
+  h += `<div class="section-panel"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;"><div class="section-title" style="margin-bottom:0;">📊 PREDICTION GRADE</div><div style="width:60px;height:60px;border-radius:50%;background:${gb(ogs)};display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue';font-size:30px;color:${gc(ogs)};">${r.grades.overall}</div></div>`;
+  grades.forEach(g=>{if(!r.grades[g.key])return;const d=r.grades[g.key];const c=gc(d.score);h+=`<div class="grade-row"><div class="grade-row-label">${g.label}</div><div class="grade-row-bar-bg"><div class="grade-row-bar" style="width:${d.score}%;background:${c};"></div></div><div class="grade-row-val" style="color:${c};">${d.score}</div></div><div class="grade-summary">${d.summary}</div>`;});
+  h += '</div>';
+
+  if(r.reasons_for_pick){h+=`<div class="section-panel"><div class="section-title">✅ WHY THIS HITS</div>`;r.reasons_for_pick.forEach((b,i)=>{h+=`<div class="reason-item"><div class="reason-num" style="background:rgba(34,197,94,0.15);color:var(--green);">${i+1}</div><div><div class="reason-title">${b.title}</div><div class="reason-text">${b.explanation}</div></div></div>`;});h+='</div>';}
+
+  if(r.risk_factors){h+=`<div class="section-panel"><div class="section-title">⚠️ RISKS</div>`;r.risk_factors.forEach((f,i)=>{const sc=f.severity==='High'?'var(--red)':f.severity==='Medium'?'var(--yellow)':'var(--green)';h+=`<div class="reason-item"><div class="reason-num" style="background:rgba(239,68,68,0.15);color:var(--red);">${i+1}</div><div><div class="reason-title">${f.title}</div><div class="reason-text">${f.explanation}</div><span style="font-family:'JetBrains Mono';font-size:9px;padding:2px 8px;border-radius:10px;background:rgba(255,255,255,0.05);color:${sc};text-transform:uppercase;display:inline-block;margin-top:6px;">${f.severity}</span></div></div>`;});h+='</div>';}
+
+  if(r.smart_plays){h+=`<div style="font-family:'Bebas Neue';font-size:18px;letter-spacing:1.5px;margin-bottom:14px;">🎯 SMART PLAYS</div>`;r.smart_plays.forEach((m,i)=>{h+=`<div class="move-card"><div class="move-num">${i+1}</div><div class="move-text">${m}</div></div>`;});}
+
+  h += `<div class="disclaimer"><strong>⚠ DISCLAIMER:</strong> Entertainment and informational purposes only. Not gambling advice. Must be 21+.</div></div>`;
+  document.getElementById('singleResults').innerHTML = h;
+}
+</script>
+</body>
+</html>
