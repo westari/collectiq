@@ -158,7 +158,7 @@ export default async function handler(req, res) {
 function getPlanLimits(plan) {
   const plans = {
     free: {
-      parlays_per_period: 3, // per week
+      parlays_per_period: 2, // per week
       period: 'week',
       has_screenshot: false,
       has_analyze_pick: false,
