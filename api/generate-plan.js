@@ -43,12 +43,13 @@ PLAYER PROFILE:
 BUILD A 7-DAY TRAINING PLAN for this player's first week.
 
 RULES:
+- CRITICAL: The player said their biggest weakness is "${weakness}". At LEAST 60% of all skill drills across the entire week MUST directly target "${weakness}". If their weakness is "Finishing at the rim", most drills should be finishing drills (Mikan, euro steps, floaters, layups, power finishes). If their weakness is "Ball handling", most drills should be dribbling drills. Do NOT give them shooting drills when they said their weakness is finishing. MATCH THE DRILLS TO THE WEAKNESS.
 - Only include drills that work with their available facilities (e.g. no shooting drills if they only have open space with no hoop)
-- Focus 60% of skill work on their biggest weakness
 - Tailor drill complexity to their experience level (beginners get fundamentals, advanced get complex reads and counters)
 - Include rest days based on their frequency (if they train 3-4 times a week, include 3-4 rest days)
 - Each training day should have 5-7 drills that flow logically (warmup first, skill work in the middle, conditioning at the end)
 - Each drill needs: name, duration in minutes, type (warmup/skill/shooting/conditioning), and a detailed 2-3 sentence description explaining exactly what to do
+- Name training days after what the player is actually working on (e.g. "Left Hand Finishing" not just "Skills Day")
 - Make drills position-specific when possible (point guard drills differ from center drills)
 - Include a brief AI insight explaining why the plan is structured this way for THIS specific player
 
