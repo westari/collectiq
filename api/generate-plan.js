@@ -5,7 +5,7 @@ const anthropic = new Anthropic({
 });
 
 export const config = {
-  maxDuration: 60,
+  maxDuration: 30,
 };
 
 export default async function handler(req, res) {
@@ -22,7 +22,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { sport, position, experience, goal, weakness, frequency, duration, access } = req.body;
+  const { sport, position, experience, goal, weakness, driving, leftHand, pressure, goToMove, threeConfidence, freeThrow, frequency, duration, access } = req.body;
 
   if (!sport || !position || !experience || !goal || !weakness || !frequency || !duration || !access) {
     return res.status(400).json({ error: 'Missing required fields' });
@@ -36,6 +36,12 @@ PLAYER PROFILE:
 - Experience level: ${experience}
 - Primary goal: ${goal}
 - Biggest weakness: ${weakness}
+- When they drive to the basket: ${driving || 'not specified'}
+- Left hand ability: ${leftHand || 'not specified'}
+- Under pressure: ${pressure || 'not specified'}
+- Go-to move: ${goToMove || 'not specified'}
+- Three-point confidence: ${threeConfidence || 'not specified'}
+- Free throw percentage: ${freeThrow || 'not specified'}
 - Training frequency: ${frequency}
 - Preferred session duration: ${duration}
 - Available facilities: ${Array.isArray(access) ? access.join(', ') : access}
