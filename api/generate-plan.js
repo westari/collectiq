@@ -9,7 +9,6 @@ export const config = {
 };
 
 export default async function handler(req, res) {
-  // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -28,82 +27,32 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
 
-  const prompt = `You are an elite basketball skills trainer who has coached thousands of youth and high school players. You build personalized weekly training plans that are specific, actionable, and tailored to each player.
+  const prompt = `You are an elite basketball skills trainer. Build a personalized weekly training plan.
 
-PLAYER PROFILE:
-- Sport: ${sport}
-- Position: ${position}
-- Experience level: ${experience}
-- Primary goal: ${goal}
-- Biggest weakness: ${weakness}
-- When they drive to the basket: ${driving || 'not specified'}
-- Left hand ability: ${leftHand || 'not specified'}
-- Under pressure: ${pressure || 'not specified'}
-- Go-to move: ${goToMove || 'not specified'}
-- Three-point confidence: ${threeConfidence || 'not specified'}
-- Free throw percentage: ${freeThrow || 'not specified'}
-- Training frequency: ${frequency}
-- Preferred session duration: ${duration}
-- Available facilities: ${Array.isArray(access) ? access.join(', ') : access}
+PLAYER: ${position}, ${experience} experience, goal: ${goal}
+WEAKNESS: ${weakness}
+DRIVING: ${driving || 'not specified'}
+LEFT HAND: ${leftHand || 'not specified'}
+UNDER PRESSURE: ${pressure || 'not specified'}
+GO-TO MOVE: ${goToMove || 'not specified'}
+THREE-POINT CONFIDENCE: ${threeConfidence || 'not specified'}
+FREE THROW: ${freeThrow || 'not specified'}
+FREQUENCY: ${frequency}
+SESSION LENGTH: ${duration}
+FACILITIES: ${Array.isArray(access) ? access.join(', ') : access}
 
-BUILD A 7-DAY TRAINING PLAN for this player's first week.
+RULES:
+1. Session duration MUST match "${duration}" exactly
+2. 60%+ of skill drills must target "${weakness}"
+3. If left hand is weak, include left-hand drills EVERY session
+4. Include rest days based on "${frequency}"
+5. 6-10 drills per session: warmup first, skills middle, conditioning last
+6. Name days specifically (e.g. "Left Hand Finishing" not "Skills Day")
 
-CRITICAL RULES — FOLLOW EVERY SINGLE ONE:
+Return ONLY valid JSON, no markdown, no backticks, no extra text:
+{"weekTitle":"Week 1: ...","aiInsight":"...","coachSummary":{"greeting":"...","assessment":"...","planOverview":"...","motivation":"..."},"days":[{"day":"Mon","date":"","focus":"...","duration":"... min","isRest":false,"drills":[{"name":"...","time":"... min","type":"warmup|skill|shooting|conditioning","detail":"..."}]}]}
 
-SESSION DURATION: The player selected "${duration}" as their session length. Every training day MUST have drills that add up to EXACTLY that time range. If they said "60-90 minutes", each session should be 60-90 minutes of drills. Do NOT give a 45-minute plan when they asked for 60-90 minutes.
-
-WEAKNESS FOCUS: The player said their biggest weakness is "${weakness}". At LEAST 60% of all skill drills across the entire week MUST directly target "${weakness}". If their weakness is "Finishing at the rim", most drills should be finishing drills. If "Ball handling", most should be dribbling drills. MATCH THE DRILLS TO THE WEAKNESS.
-
-LEFT HAND: The player described their left hand as "${leftHand || 'not specified'}". If their left hand is weak or they avoid it, you MUST include left-hand-specific drills in EVERY training day. Examples: "Left hand only dribbling", "Left hand layup series", "Left hand finishing". This is critical — weak hand development should be woven into every session.
-
-PLAY STYLE ADJUSTMENTS:
-- Driving tendency: "${driving || 'not specified'}" — if they get blocked or lose the ball, add finishing and ball security drills.
-- Under pressure: "${pressure || 'not specified'}" — if they struggle or turn it over, add pressure handling and tight space dribbling.
-- Go-to move: "${goToMove || 'not specified'}" — build counter moves off their go-to. If they don't have one, help them develop one.
-- Three-point confidence: "${threeConfidence || 'not specified'}" — if low, include form shooting. If high, add off-dribble and contested threes.
-- Free throw: "${freeThrow || 'not specified'}" — if below 60%, include free throw routine in every session.
-
-OTHER RULES:
-- Only include drills that work with their available facilities
-- Tailor drill complexity to their experience level (${experience})
-- Include rest days based on their frequency (${frequency})
-- Each training day should have 6-10 drills that flow logically (warmup first, skill work in the middle, conditioning at the end)
-- Each drill needs: name, duration in minutes, type (warmup/skill/shooting/conditioning), and a detailed 2-3 sentence description
-- Name training days after what the player is actually working on (e.g. "Left Hand Finishing" not just "Skills Day")
-- Make drills position-specific for a ${position}
-
-Respond ONLY in this exact JSON format with no other text, no markdown, no code fences:
-{
-  "weekTitle": "Week 1: [descriptive title based on their weakness and goal]",
-  "aiInsight": "[2-3 sentences explaining why this plan is structured this way for this player specifically.]",
-  "coachSummary": {
-    "greeting": "[1 sentence greeting them by position, e.g. 'Alright, let's get to work.']",
-    "assessment": "[2-3 sentences summarizing what you see based on their answers — their strengths, weaknesses, and what's holding them back. Be specific and reference their actual answers.]",
-    "planOverview": "[2-3 sentences explaining what this week's plan focuses on and why. Reference specific drills or skills they'll work on.]",
-    "motivation": "[1 sentence motivational closer, e.g. 'Stay consistent and you'll see results by week 3.']"
-  },
-  "days": [
-    {
-      "day": "Mon",
-      "date": "",
-      "focus": "[session focus area - be specific, e.g. 'Left Hand Finishing' not just 'Finishing']",
-      "duration": "[total minutes] min",
-      "isRest": false,
-      "drills": [
-        {
-          "name": "[specific drill name]",
-          "time": "[minutes] min",
-          "type": "warmup|skill|shooting|conditioning",
-          "detail": "[2-3 sentence description of exactly what to do, including reps, sets, and specific instructions]"
-        }
-      ]
-    }
-  ]
-}
-
-For rest days, set isRest to true, drills to an empty array, and duration to "—".
-Make sure every day of the week (Mon through Sun) is included.
-Do NOT wrap the response in markdown code fences or add any text outside the JSON.`;
+Include all 7 days Mon-Sun. Rest days: isRest true, drills empty array, duration "---".`;
 
   try {
     const message = await anthropic.messages.create({
@@ -121,18 +70,16 @@ Do NOT wrap the response in markdown code fences or add any text outside the JSO
 
     let plan;
     try {
-     const firstBrace = responseText.indexOf('{');
-      const lastBrace = responseText.lastIndexOf('}');
-      const cleaned = responseText.substring(firstBrace, lastBrace + 1);
-      const jsonMatch = [cleaned];
-      if (jsonMatch) {
-        plan = JSON.parse(jsonMatch[0]);
-      } else {
-        plan = JSON.parse(responseText);
+      var start = responseText.indexOf('{');
+      var end = responseText.lastIndexOf('}');
+      if (start === -1 || end === -1) {
+        throw new Error('No JSON object found');
       }
+      var jsonString = responseText.substring(start, end + 1);
+      plan = JSON.parse(jsonString);
     } catch (parseError) {
-      console.error('Failed to parse Claude response:', responseText);
-      return res.status(500).json({ error: 'Failed to parse training plan', raw: responseText });
+      console.error('Parse error. Raw response:', responseText.substring(0, 200));
+      return res.status(500).json({ error: 'Failed to parse training plan' });
     }
 
     return res.status(200).json(plan);
