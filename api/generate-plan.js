@@ -48,21 +48,40 @@ PLAYER PROFILE:
 
 BUILD A 7-DAY TRAINING PLAN for this player's first week.
 
-RULES:
-- CRITICAL: The player said their biggest weakness is "${weakness}". At LEAST 60% of all skill drills across the entire week MUST directly target "${weakness}". If their weakness is "Finishing at the rim", most drills should be finishing drills (Mikan, euro steps, floaters, layups, power finishes). If their weakness is "Ball handling", most drills should be dribbling drills. Do NOT give them shooting drills when they said their weakness is finishing. MATCH THE DRILLS TO THE WEAKNESS.
-- Only include drills that work with their available facilities (e.g. no shooting drills if they only have open space with no hoop)
-- Tailor drill complexity to their experience level (beginners get fundamentals, advanced get complex reads and counters)
-- Include rest days based on their frequency (if they train 3-4 times a week, include 3-4 rest days)
-- Each training day should have 5-7 drills that flow logically (warmup first, skill work in the middle, conditioning at the end)
-- Each drill needs: name, duration in minutes, type (warmup/skill/shooting/conditioning), and a detailed 2-3 sentence description explaining exactly what to do
+CRITICAL RULES — FOLLOW EVERY SINGLE ONE:
+
+SESSION DURATION: The player selected "${duration}" as their session length. Every training day MUST have drills that add up to EXACTLY that time range. If they said "60-90 minutes", each session should be 60-90 minutes of drills. Do NOT give a 45-minute plan when they asked for 60-90 minutes.
+
+WEAKNESS FOCUS: The player said their biggest weakness is "${weakness}". At LEAST 60% of all skill drills across the entire week MUST directly target "${weakness}". If their weakness is "Finishing at the rim", most drills should be finishing drills. If "Ball handling", most should be dribbling drills. MATCH THE DRILLS TO THE WEAKNESS.
+
+LEFT HAND: The player described their left hand as "${leftHand || 'not specified'}". If their left hand is weak or they avoid it, you MUST include left-hand-specific drills in EVERY training day. Examples: "Left hand only dribbling", "Left hand layup series", "Left hand finishing". This is critical — weak hand development should be woven into every session.
+
+PLAY STYLE ADJUSTMENTS:
+- Driving tendency: "${driving || 'not specified'}" — if they get blocked or lose the ball, add finishing and ball security drills.
+- Under pressure: "${pressure || 'not specified'}" — if they struggle or turn it over, add pressure handling and tight space dribbling.
+- Go-to move: "${goToMove || 'not specified'}" — build counter moves off their go-to. If they don't have one, help them develop one.
+- Three-point confidence: "${threeConfidence || 'not specified'}" — if low, include form shooting. If high, add off-dribble and contested threes.
+- Free throw: "${freeThrow || 'not specified'}" — if below 60%, include free throw routine in every session.
+
+OTHER RULES:
+- Only include drills that work with their available facilities
+- Tailor drill complexity to their experience level (${experience})
+- Include rest days based on their frequency (${frequency})
+- Each training day should have 6-10 drills that flow logically (warmup first, skill work in the middle, conditioning at the end)
+- Each drill needs: name, duration in minutes, type (warmup/skill/shooting/conditioning), and a detailed 2-3 sentence description
 - Name training days after what the player is actually working on (e.g. "Left Hand Finishing" not just "Skills Day")
-- Make drills position-specific when possible (point guard drills differ from center drills)
-- Include a brief AI insight explaining why the plan is structured this way for THIS specific player
+- Make drills position-specific for a ${position}
 
 Respond ONLY in this exact JSON format with no other text, no markdown, no code fences:
 {
   "weekTitle": "Week 1: [descriptive title based on their weakness and goal]",
-  "aiInsight": "[2-3 sentences explaining why this plan is structured this way for this player specifically. Reference their position, weakness, and goal.]",
+  "aiInsight": "[2-3 sentences explaining why this plan is structured this way for this player specifically.]",
+  "coachSummary": {
+    "greeting": "[1 sentence greeting them by position, e.g. 'Alright, let's get to work.']",
+    "assessment": "[2-3 sentences summarizing what you see based on their answers — their strengths, weaknesses, and what's holding them back. Be specific and reference their actual answers.]",
+    "planOverview": "[2-3 sentences explaining what this week's plan focuses on and why. Reference specific drills or skills they'll work on.]",
+    "motivation": "[1 sentence motivational closer, e.g. 'Stay consistent and you'll see results by week 3.']"
+  },
   "days": [
     {
       "day": "Mon",
