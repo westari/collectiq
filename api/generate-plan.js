@@ -121,7 +121,7 @@ Do NOT wrap the response in markdown code fences or add any text outside the JSO
 
     let plan;
     try {
-      const cleaned = responseText.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+      const cleaned = responseText.replace(/`/g, '').replace(/json\n/g, '').trim();
       const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         plan = JSON.parse(jsonMatch[0]);
