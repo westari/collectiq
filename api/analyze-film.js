@@ -10,53 +10,114 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { videoUrl, profile } = req.body;
+  var videoUrl = req.body.videoUrl;
+  var profile = req.body.profile;
 
   if (!videoUrl) return res.status(400).json({ error: 'Video URL is required' });
 
-  const apiKey = process.env.GEMINI_API_KEY;
+  var apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return res.status(500).json({ error: 'Gemini API key not configured' });
 
-  const playerContext = profile ? 'Position: ' + (profile.position || '') + ', Experience: ' + (profile.experience || '') + ', Goal: ' + (profile.goal || '') + ', Weakness: ' + (profile.weakness || '') : '';
+  var playerInfo = '';
+  if (profile) {
+    playerInfo = 'Position: ' + (profile.position || '') + ', Experience: ' + (profile.experience || '') + ', Goal: ' + (profile.goal || '') + ', Weakness: ' + (profile.weakness || '');
+  }
 
-  const prompt = 'You are Coach X, an elite basketball analyst. Analyze this game film clip. ' + playerContext + ' Return ONLY valid JSON with no markdown or backticks: {"overallGrade":"A/B/C/D/F","summary":"2-3 sentence assessment","strengths":[{"skill":"name","detail":"observation"}],"weaknesses":[{"skill":"name","detail":"what to fix"}],"keyPlays":[{"timestamp":"time","description":"what happened","grade":"good/bad/neutral"}],"drillRecommendations":[{"name":"drill","reason":"why"}],"coachNote":"1-2 sentence coaching note"}';
+  var prompt = 'You are Coach X, an elite basketball analyst. Analyze this game film. ' + playerInfo + ' Return ONLY valid JSON: {"overallGrade":"A or B or C or D or F","summary":"2-3 sentences","strengths":[{"skill":"name","detail":"observation"}],"weaknesses":[{"skill":"name","detail":"what to fix"}],"keyPlays":[{"timestamp":"time","description":"what happened","grade":"good or bad or neutral"}],"drillRecommendations":[{"name":"drill","reason":"why"}],"coachNote":"1-2 sentence note"}';
 
   try {
-    var videoResponse = await fetch(videoUrl);
-    if (!videoResponse.ok) {
-      return res.status(500).json({ error: 'Failed to download video from storage' });
-    }
-    var videoBuffer = Buffer.from(await videoResponse.arrayBuffer());
-    var videoBase64 = videoBuffer.toString('base64');
+    // Step 1: Download video from Supabase
+    var videoRes = await fetch(videoUrl);
+    if (!videoRes.ok) return res.status(500).json({ error: 'Failed to download video' });
 
-    var geminiResponse = await fetch(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=' + apiKey,
+    var videoBuffer = Buffer.from(await videoRes.arrayBuffer());
+    var videoSize = videoBuffer.length;
+
+    console.log('Video size:', videoSize, 'bytes');
+
+    // Step 2: Upload to Gemini File API
+    var uploadRes = await fetch(
+      'https://generativelanguage.googleapis.com/upload/v1beta/files?key=' + apiKey,
+      {
+        method: 'POST',
+        headers: {
+          'X-Goog-Upload-Protocol': 'resumable',
+          'X-Goog-Upload-Command': 'start',
+          'X-Goog-Upload-Header-Content-Length': videoSize.toString(),
+          'X-Goog-Upload-Header-Content-Type': 'video/mp4',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ file: { display_name: 'game_film' } }),
+      }
+    );
+
+    var uploadUrl = uploadRes.headers.get('x-goog-upload-url');
+    if (!uploadUrl) {
+      console.error('No upload URL returned');
+      return res.status(500).json({ error: 'Failed to start upload' });
+    }
+
+    // Step 3: Upload the actual video data
+    var dataRes = await fetch(uploadUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Length': videoSize.toString(),
+        'X-Goog-Upload-Offset': '0',
+        'X-Goog-Upload-Command': 'upload, finalize',
+      },
+      body: videoBuffer,
+    });
+
+    var fileInfo = await dataRes.json();
+    var fileUri = fileInfo.file?.uri;
+
+    if (!fileUri) {
+      console.error('No file URI:', JSON.stringify(fileInfo));
+      return res.status(500).json({ error: 'Failed to upload video to Gemini' });
+    }
+
+    console.log('File uploaded:', fileUri);
+
+    // Step 4: Wait for file to process
+    var fileName = fileInfo.file?.name;
+    var fileState = fileInfo.file?.state;
+    var attempts = 0;
+
+    while (fileState === 'PROCESSING' && attempts < 30) {
+      await new Promise(r => setTimeout(r, 2000));
+      var checkRes = await fetch(
+        'https://generativelanguage.googleapis.com/v1beta/' + fileName + '?key=' + apiKey
+      );
+      var checkData = await checkRes.json();
+      fileState = checkData.state;
+      attempts++;
+    }
+
+    if (fileState !== 'ACTIVE') {
+      return res.status(500).json({ error: 'Video processing timed out' });
+    }
+
+    // Step 5: Generate content with the uploaded file
+    var genRes = await fetch(
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{
             parts: [
-              {
-                inlineData: {
-                  mimeType: 'video/mp4',
-                  data: videoBase64,
-                },
-              },
+              { file_data: { mime_type: 'video/mp4', file_uri: fileUri } },
               { text: prompt },
             ],
           }],
-          generationConfig: {
-            maxOutputTokens: 2000,
-            temperature: 0.7,
-          },
+          generationConfig: { maxOutputTokens: 2000, temperature: 0.7 },
         }),
       }
     );
 
-    var data = await geminiResponse.json();
+    var data = await genRes.json();
 
-    if (!geminiResponse.ok) {
+    if (!genRes.ok) {
       console.error('Gemini error:', JSON.stringify(data).substring(0, 500));
       return res.status(500).json({ error: 'Failed to analyze video' });
     }
@@ -66,12 +127,12 @@ export default async function handler(req, res) {
 
     var start = text.indexOf('{');
     var end = text.lastIndexOf('}');
-    if (start === -1 || end === -1) return res.status(500).json({ error: 'Failed to parse analysis' });
+    if (start === -1 || end === -1) return res.status(500).json({ error: 'Failed to parse' });
 
     var analysis = JSON.parse(text.substring(start, end + 1));
     return res.status(200).json(analysis);
   } catch (error) {
-    console.error('Film analysis error:', error);
+    console.error('Film error:', error.message || error);
     return res.status(500).json({ error: 'Failed to analyze video' });
   }
 }
