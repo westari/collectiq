@@ -115,7 +115,7 @@ export default async function handler(req, res) {
               { text: prompt },
             ],
           }],
-          generationConfig: { maxOutputTokens: 2000, temperature: 0.7 },
+          generationConfig: { maxOutputTokens: 4000, temperature: 0.7 },
         }),
       }
     );
