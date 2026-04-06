@@ -1,21 +1,23 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
-
 const RUBRICS = {
   defense: {
     skills: ['defense', 'athleticism', 'iq'],
-    prompt: 'Watch this player playing on-ball defense for one possession. Score defense, athleticism, and iq using a 1-10 rubric where: 1-2 = beginner, 3-4 = developing, 5-6 = solid, 7-8 = advanced, 9-10 = elite varsity+. Look at: stance width and balance, lateral quickness, hand discipline, ability to stay in front, contest without fouling, anticipation. CRITICAL: If the clip does not clearly show a skill (e.g. the player never has to react athletically, or you cannot see their basketball IQ), return null for that skill instead of guessing a number.',
+    roleHint: 'CRITICAL: In this clip, the player you are evaluating is the DEFENDER, not the ball-handler. Watch the defender. Score the defender. Ignore the offensive player\'s skills entirely.',
+    prompt: 'This is an on-ball defense possession. Score the DEFENDER on defense, athleticism, and iq using a 1-10 rubric: 1-2 = beginner, 3-4 = developing, 5-6 = solid, 7-8 = advanced, 9-10 = elite varsity+. Look at: stance width and balance, lateral quickness, hand discipline, ability to stay in front, contesting without fouling, anticipation, effort. Score generously based on what you DO see — only return null if a skill is completely impossible to evaluate from the clip.',
   },
   shooting: {
     skills: ['shooting', 'shotForm'],
-    prompt: 'Watch this player shoot catch-and-shoot or pull-up jumpers. Score shooting and shotForm using a 1-10 rubric where: 1-2 = poor mechanics, 3-4 = inconsistent, 5-6 = solid repeatable, 7-8 = clean form with range, 9-10 = elite. Look at: release point, elbow alignment, follow through, balance, arc, consistency, makes vs attempts. CRITICAL: If the clip does not clearly show a skill, return null for that skill instead of guessing.',
+    roleHint: 'CRITICAL: In this clip, the player you are evaluating is the SHOOTER. There may not be a defender at all.',
+    prompt: 'This is a shooting clip. Score the SHOOTER on shooting and shotForm using a 1-10 rubric: 1-2 = poor mechanics, 3-4 = inconsistent, 5-6 = solid repeatable, 7-8 = clean form with range, 9-10 = elite. Look at: release point, elbow alignment, follow through, balance, arc, consistency, makes vs attempts. Score generously based on what you DO see — only return null if completely impossible to evaluate.',
   },
   finishing: {
     skills: ['finishing', 'weakHand', 'touch'],
-    prompt: 'Watch this player finish at the rim with both hands. Score finishing, weakHand, and touch using a 1-10 rubric where: 1-2 = struggles, 3-4 = basic only, 5-6 = solid both hands, 7-8 = creative and reliable, 9-10 = elite. Look at: body control, off-hand finishing specifically, touch on the rim, ability to absorb contact. CRITICAL: weakHand should ONLY be scored if you actually see the player finish with their non-dominant hand. If they only used their strong hand, return null for weakHand. Same rule for any skill not clearly demonstrated.',
+    roleHint: 'CRITICAL: In this clip, the player you are evaluating is the FINISHER attacking the rim.',
+    prompt: 'This is a finishing clip. Score the FINISHER on finishing, weakHand, and touch using a 1-10 rubric: 1-2 = struggles, 3-4 = basic only, 5-6 = solid both hands, 7-8 = creative and reliable, 9-10 = elite. Look at: body control, off-hand finishing, touch on the rim, ability to absorb contact. SPECIAL RULE: weakHand should ONLY be scored if you actually see the player attempt a finish with their non-dominant hand. If they only used their strong hand the entire clip, return null for weakHand. For other skills, score what you see and only return null if completely impossible to evaluate.',
   },
   oneOnOne: {
     skills: ['ballHandling', 'creativity', 'finishing', 'iq'],
-    prompt: 'Watch this 1-on-1 offensive possession. Score ballHandling, creativity, finishing, and iq using a 1-10 rubric where: 1-2 = beginner, 3-4 = developing, 5-6 = solid, 7-8 = advanced, 9-10 = elite. Look at: ball handling under pressure, ability to create space, move variety, finishing creativity, decision making against the defender. CRITICAL: If the clip does not clearly show a skill, return null for that skill instead of guessing.',
+    roleHint: 'CRITICAL: In this clip, the player you are evaluating is the OFFENSIVE player WITH the ball, not the defender.',
+    prompt: 'This is a 1-on-1 offensive possession. Score the BALL-HANDLER on ballHandling, creativity, finishing, and iq using a 1-10 rubric: 1-2 = beginner, 3-4 = developing, 5-6 = solid, 7-8 = advanced, 9-10 = elite. Look at: ball handling under pressure, ability to create space, move variety, finishing creativity, decision making against the defender. Score generously based on what you DO see — only return null if completely impossible to evaluate.',
   },
 };
 
@@ -48,16 +50,17 @@ export default async function handler(req, res) {
   }
 
   const playerIdSection = playerDescription
-    ? 'IMPORTANT: The player you are evaluating is described as: "' + playerDescription + '". Only score THIS specific player, not anyone else in the video. If you cannot identify them, evaluate the most prominent player. '
+    ? 'The player to evaluate is described as: "' + playerDescription + '". Use this to identify them visually. '
     : '';
 
   const skillsList = rubric.skills.map(s => '"' + s + '": <number 1-10 OR null>').join(', ');
-  const prompt = playerIdSection + rubric.prompt + ' Return ONLY valid JSON with no markdown, no backticks, no explanation. Format: {' + skillsList + ', "feedback": "1 sentence", "highlight": "best thing", "fix": "biggest fix"}';
+  const prompt = rubric.roleHint + ' ' + playerIdSection + rubric.prompt + ' Return ONLY valid JSON, no markdown, no backticks, no explanation. Format: {' + skillsList + ', "feedback": "1 sentence", "highlight": "best thing", "fix": "biggest fix"}';
 
   try {
     // Step 1: download the video from Supabase
     const videoRes = await fetch(videoUrl);
     if (!videoRes.ok) {
+      console.error('Failed to fetch video from Supabase:', videoRes.status);
       return res.status(500).json({ error: 'Failed to download video from storage' });
     }
     const videoBuffer = Buffer.from(await videoRes.arrayBuffer());
@@ -85,7 +88,7 @@ export default async function handler(req, res) {
     const fileUri = uploadData.file.uri;
     const fileName = uploadData.file.name;
 
-    // Step 3: poll until file is ACTIVE (Gemini needs to process the video)
+    // Step 3: poll until file is ACTIVE
     let fileState = uploadData.file.state;
     let pollAttempts = 0;
     while (fileState === 'PROCESSING' && pollAttempts < 24) {
@@ -99,6 +102,7 @@ export default async function handler(req, res) {
     }
 
     if (fileState !== 'ACTIVE') {
+      console.error('Gemini file not ACTIVE after polling. Final state:', fileState);
       return res.status(500).json({ error: 'Video processing timed out or failed' });
     }
 
@@ -140,6 +144,7 @@ export default async function handler(req, res) {
     }
 
     parsed.clipType = clipType;
+    console.log('assess-clip success for', clipType, ':', JSON.stringify(parsed));
     return res.status(200).json(parsed);
   } catch (error) {
     console.error('assess-clip error:', error);
