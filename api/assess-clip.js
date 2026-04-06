@@ -5,23 +5,23 @@ export const config = {
 const CLIP_RUBRICS = {
   '1on1': {
     skills: ['ballHandling', 'finishing', 'defense', 'iq', 'athleticism'],
-    prompt: 'You are watching a basketball player in a 1-on-1 possession. Score them on ballHandling, finishing, defense, iq, and athleticism using a 1-10 rubric where: 1-2 = beginner, 3-4 = developing, 5-6 = solid fundamentals, 7-8 = advanced, 9-10 = elite varsity+. Look at: ball handling under pressure, ability to create space, finishing creativity, defensive stance, decision making, athletic movement.',
+    prompt: 'Watch this 1-on-1 basketball possession. Score the player on ballHandling, finishing, defense, iq, and athleticism using a 1-10 rubric where: 1-2 = beginner, 3-4 = developing, 5-6 = solid, 7-8 = advanced, 9-10 = elite varsity+. Look at: ball handling under pressure, ability to create space, finishing creativity, defensive stance, decision making, athletic movement.',
   },
   'threes': {
     skills: ['shooting', 'shotForm'],
-    prompt: 'You are watching a basketball player shoot 2-3 open three pointers. Score shooting and shotForm using a 1-10 rubric where: 1-2 = poor mechanics, 3-4 = inconsistent, 5-6 = solid repeatable, 7-8 = clean form with range, 9-10 = elite. Look at: release point, elbow alignment, follow through, balance, arc, consistency.',
+    prompt: 'Watch this player shoot open three pointers. Score shooting and shotForm using a 1-10 rubric where: 1-2 = poor mechanics, 3-4 = inconsistent, 5-6 = solid repeatable, 7-8 = clean form with range, 9-10 = elite. Look at: release point, elbow alignment, follow through, balance, arc, consistency.',
   },
   'dribble': {
     skills: ['ballHandling', 'weakHand', 'creativity'],
-    prompt: 'You are watching a basketball player do dribble combo moves. Score ballHandling, weakHand, and creativity using a 1-10 rubric where: 1-2 = high loose dribble, 3-4 = developing control, 5-6 = tight controlled, 7-8 = advanced both hands, 9-10 = elite. Look at: dribble height, hand strength, weak hand control, move variety, tightness.',
+    prompt: 'Watch this player do dribble combo moves. Score ballHandling, weakHand, and creativity using a 1-10 rubric where: 1-2 = high loose dribble, 3-4 = developing, 5-6 = tight controlled, 7-8 = advanced both hands, 9-10 = elite. Look at: dribble height, hand strength, weak hand control, move variety, tightness.',
   },
   'finishing': {
     skills: ['finishing', 'weakHand', 'touch'],
-    prompt: 'You are watching a basketball player finish at the rim with both hands. Score finishing, weakHand, and touch using a 1-10 rubric where: 1-2 = struggles, 3-4 = basic only, 5-6 = solid both hands, 7-8 = creative, 9-10 = elite. Look at: body control, off-hand finishing, touch on rim.',
+    prompt: 'Watch this player finish at the rim with both hands. Score finishing, weakHand, and touch using a 1-10 rubric where: 1-2 = struggles, 3-4 = basic only, 5-6 = solid both hands, 7-8 = creative, 9-10 = elite. Look at: body control, off-hand finishing, touch on rim.',
   },
   'game': {
     skills: ['iq', 'courtVision', 'decisionMaking', 'finishing'],
-    prompt: 'You are watching real game footage of a basketball player. Score iq, courtVision, decisionMaking, and finishing using a 1-10 rubric where: 1-2 = limited awareness, 3-4 = developing, 5-6 = solid game sense, 7-8 = advanced playmaker, 9-10 = elite. Look at: how they read defense, pass selection, timing, court awareness, execution.',
+    prompt: 'Watch this real game footage. Score iq, courtVision, decisionMaking, and finishing using a 1-10 rubric where: 1-2 = limited awareness, 3-4 = developing, 5-6 = solid game sense, 7-8 = advanced playmaker, 9-10 = elite. Look at: how they read defense, pass selection, timing, court awareness, execution.',
   },
 };
 
@@ -35,6 +35,7 @@ export default async function handler(req, res) {
 
   const videoUrl = req.body.videoUrl;
   const clipType = req.body.clipType;
+  const playerDescription = req.body.playerDescription || '';
 
   if (!videoUrl || !clipType) return res.status(400).json({ error: 'Missing required fields' });
 
@@ -44,8 +45,12 @@ export default async function handler(req, res) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return res.status(500).json({ error: 'API key not configured' });
 
+  const playerIdSection = playerDescription
+    ? 'IMPORTANT: The player you are evaluating is described as: "' + playerDescription + '". This description is critical - only score THIS specific player, not anyone else in the video. If you cannot identify them, evaluate the most prominent player. '
+    : '';
+
   const skillsList = rubric.skills.map(s => '"' + s + '": <number 1-10>').join(', ');
-  const prompt = rubric.prompt + ' Return ONLY valid JSON with no markdown, no backticks, no explanation. Format: {' + skillsList + ', "feedback": "1 sentence", "highlight": "best thing", "fix": "biggest fix"}';
+  const prompt = playerIdSection + rubric.prompt + ' Return ONLY valid JSON with no markdown, no backticks, no explanation. Format: {' + skillsList + ', "feedback": "1 sentence", "highlight": "best thing", "fix": "biggest fix"}';
 
   try {
     console.log('Downloading video:', videoUrl);
@@ -59,11 +64,8 @@ export default async function handler(req, res) {
     const videoSize = videoBuffer.length;
     console.log('Video size:', videoSize);
 
-    if (videoSize === 0) {
-      return res.status(500).json({ error: 'Video file is empty' });
-    }
+    if (videoSize === 0) return res.status(500).json({ error: 'Video file is empty' });
 
-    // Upload to Gemini File API
     const startRes = await fetch(
       'https://generativelanguage.googleapis.com/upload/v1beta/files?key=' + apiKey,
       {
@@ -80,10 +82,7 @@ export default async function handler(req, res) {
     );
 
     const uploadUrl = startRes.headers.get('x-goog-upload-url');
-    if (!uploadUrl) {
-      console.error('No upload URL');
-      return res.status(500).json({ error: 'Failed to init upload' });
-    }
+    if (!uploadUrl) return res.status(500).json({ error: 'Failed to init upload' });
 
     const uploadRes = await fetch(uploadUrl, {
       method: 'POST',
@@ -106,7 +105,6 @@ export default async function handler(req, res) {
 
     console.log('Uploaded to Gemini:', fileUri);
 
-    // Wait for ACTIVE
     let fileState = fileInfo.file?.state;
     let waitTime = 0;
     while (fileState !== 'ACTIVE' && waitTime < 120000) {
@@ -118,11 +116,8 @@ export default async function handler(req, res) {
       console.log('State:', fileState, 'wait:', waitTime);
     }
 
-    if (fileState !== 'ACTIVE') {
-      return res.status(500).json({ error: 'Video processing took too long' });
-    }
+    if (fileState !== 'ACTIVE') return res.status(500).json({ error: 'Video processing took too long' });
 
-    // Generate
     const genRes = await fetch(
       'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey,
       {
@@ -154,9 +149,7 @@ export default async function handler(req, res) {
     }
 
     console.log('Got text length:', text.length);
-    console.log('First 200 chars:', text.substring(0, 200));
 
-    // Robust JSON extraction - handle markdown backticks
     let cleanText = text.trim();
     if (cleanText.startsWith('```')) {
       cleanText = cleanText.replace(/^```(?:json)?\s*/, '').replace(/```\s*$/, '');
@@ -164,17 +157,14 @@ export default async function handler(req, res) {
 
     const start = cleanText.indexOf('{');
     const end = cleanText.lastIndexOf('}');
-    if (start === -1 || end === -1) {
-      console.error('No JSON braces found');
-      return res.status(500).json({ error: 'Failed to parse response' });
-    }
+    if (start === -1 || end === -1) return res.status(500).json({ error: 'Failed to parse response' });
 
     let assessment;
     try {
       assessment = JSON.parse(cleanText.substring(start, end + 1));
     } catch (parseErr) {
       console.error('JSON parse error:', parseErr.message);
-      console.error('Attempted to parse:', cleanText.substring(start, end + 1).substring(0, 300));
+      console.error('Attempted:', cleanText.substring(start, end + 1).substring(0, 300));
       return res.status(500).json({ error: 'Failed to parse JSON' });
     }
 
