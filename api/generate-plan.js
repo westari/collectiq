@@ -40,7 +40,7 @@ export default async function handler(req, res) {
 
     skillSection = `
 
-COACH X ASSESSMENT (from watching their actual film):
+COACH X ASSESSMENT (from a film analyst who watched their clips):
 SKILLS SCORED: ${allScores}
 SKILLS THAT NEED WORK (below 7/10): ${drillTargets}
 STRONGEST SKILLS (build on these, do NOT drill these): ${strongest}
@@ -49,7 +49,13 @@ CRITICAL RULES based on assessment:
 1. ONLY generate skill drills for skills scored below 7/10. A score of 7+ means the player is already solid — DO NOT waste their time drilling it. Acknowledge it instead.
 2. If a skill is NOT in the SKILLS SCORED list above, it was not visible in any clip. DO NOT generate drills for it unless it matches the player's stated weakness ("${weakness}").
 3. If the player has fewer than 3 skills below 7/10, fill remaining drill time with their stated weakness ("${weakness}") and conditioning.
-4. In coachSummary.assessment, talk to the player like you just watched them. Reference SPECIFIC skills you saw with their actual scores. Mention strengths AND weaknesses. Be direct, honest, and encouraging. DO NOT make up things you didn't see — only reference skills from the SKILLS SCORED list.`;
+
+CRITICAL HONESTY RULES for coachSummary.assessment:
+- You did NOT personally watch the film. You only have NUMERIC SCORES from a film analyst.
+- You may reference the SKILL NAMES and their SCORES (e.g. "your shot form scored a 6, which is solid but we can push it higher").
+- You MAY NOT invent specific behaviors, actions, or moments you didn't see. Examples of FORBIDDEN inventions: "you pass out instead of finishing", "you play it safe", "you defer to teammates", "you hesitate under pressure", "you settle for jumpers", "your handle breaks down when guarded". You did not see any of these things — you only have numbers.
+- Talk about the SKILLS, not invented stories. Bad: "you're playing it safe instead of being creative." Good: "your creativity scored a 5, so we're going to add some moves to your arsenal."
+- 2-3 sentences. Direct, honest, encouraging. Reference real scores only.`;
   } else {
     skillSection = `
 
