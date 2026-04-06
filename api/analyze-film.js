@@ -17,45 +17,20 @@ export default async function handler(req, res) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return res.status(500).json({ error: 'Gemini API key not configured' });
 
-  const playerContext = profile ? `
-PLAYER PROFILE:
-- Position: ${profile.position}
-- Experience: ${profile.experience}
-- Goal: ${profile.goal}
-- Weakness: ${profile.weakness}
-- Left hand: ${profile.leftHand || 'unknown'}
-- Go-to move: ${profile.goToMove || 'unknown'}
-` : '';
+  const playerContext = profile ? 'Position: ' + (profile.position || '') + ', Experience: ' + (profile.experience || '') + ', Goal: ' + (profile.goal || '') + ', Weakness: ' + (profile.weakness || '') : '';
 
-  const prompt = `You are Coach X, an elite basketball analyst. Analyze this game film clip and provide a detailed breakdown.
-
-${playerContext}
-
-Analyze the video and return ONLY valid JSON with no markdown or backticks:
-{
-  "overallGrade": "A/B/C/D/F",
-  "summary": "2-3 sentence overall assessment of the player's performance in this clip.",
-  "strengths": [
-    {"skill": "skill name", "detail": "specific observation from the film"},
-    {"skill": "skill name", "detail": "specific observation from the film"}
-  ],
-  "weaknesses": [
-    {"skill": "skill name", "detail": "specific observation and what to fix"},
-    {"skill": "skill name", "detail": "specific observation and what to fix"}
-  ],
-  "keyPlays": [
-    {"timestamp": "approximate time", "description": "what happened", "grade": "good/bad/neutral"}
-  ],
-  "drillRecommendations": [
-    {"name": "drill name", "reason": "why this drill addresses what was seen in the film"},
-    {"name": "drill name", "reason": "why this drill addresses what was seen in the film"}
-  ],
-  "coachNote": "1-2 sentence motivational coaching note based on what was seen"
-}`;
+  const prompt = 'You are Coach X, an elite basketball analyst. Analyze this game film clip. ' + playerContext + ' Return ONLY valid JSON with no markdown or backticks: {"overallGrade":"A/B/C/D/F","summary":"2-3 sentence assessment","strengths":[{"skill":"name","detail":"observation"}],"weaknesses":[{"skill":"name","detail":"what to fix"}],"keyPlays":[{"timestamp":"time","description":"what happened","grade":"good/bad/neutral"}],"drillRecommendations":[{"name":"drill","reason":"why"}],"coachNote":"1-2 sentence coaching note"}';
 
   try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+    var videoResponse = await fetch(videoUrl);
+    if (!videoResponse.ok) {
+      return res.status(500).json({ error: 'Failed to download video from storage' });
+    }
+    var videoBuffer = Buffer.from(await videoResponse.arrayBuffer());
+    var videoBase64 = videoBuffer.toString('base64');
+
+    var geminiResponse = await fetch(
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -63,9 +38,9 @@ Analyze the video and return ONLY valid JSON with no markdown or backticks:
           contents: [{
             parts: [
               {
-                fileData: {
+                inlineData: {
                   mimeType: 'video/mp4',
-                  fileUri: videoUrl,
+                  data: videoBase64,
                 },
               },
               { text: prompt },
@@ -79,26 +54,22 @@ Analyze the video and return ONLY valid JSON with no markdown or backticks:
       }
     );
 
-    const data = await response.json();
+    var data = await geminiResponse.json();
 
-    if (!response.ok) {
+    if (!geminiResponse.ok) {
       console.error('Gemini error:', JSON.stringify(data).substring(0, 500));
       return res.status(500).json({ error: 'Failed to analyze video' });
     }
 
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    var text = data.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!text) return res.status(500).json({ error: 'No analysis returned' });
 
-    try {
-      var start = text.indexOf('{');
-      var end = text.lastIndexOf('}');
-      if (start === -1 || end === -1) throw new Error('No JSON found');
-      var analysis = JSON.parse(text.substring(start, end + 1));
-      return res.status(200).json(analysis);
-    } catch (parseErr) {
-      console.error('Parse error:', text.substring(0, 200));
-      return res.status(500).json({ error: 'Failed to parse analysis' });
-    }
+    var start = text.indexOf('{');
+    var end = text.lastIndexOf('}');
+    if (start === -1 || end === -1) return res.status(500).json({ error: 'Failed to parse analysis' });
+
+    var analysis = JSON.parse(text.substring(start, end + 1));
+    return res.status(200).json(analysis);
   } catch (error) {
     console.error('Film analysis error:', error);
     return res.status(500).json({ error: 'Failed to analyze video' });
