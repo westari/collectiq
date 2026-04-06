@@ -1,28 +1,26 @@
-export const config = {
-  maxDuration: 300,
+import { GoogleGenerativeAI } from "@google/generative-ai";
+
+const RUBRICS = {
+  defense: {
+    skills: ['defense', 'athleticism', 'iq'],
+    prompt: 'Watch this player playing on-ball defense for one possession. Score defense, athleticism, and iq using a 1-10 rubric where: 1-2 = beginner, 3-4 = developing, 5-6 = solid, 7-8 = advanced, 9-10 = elite varsity+. Look at: stance width and balance, lateral quickness, hand discipline, ability to stay in front, contest without fouling, anticipation. CRITICAL: If the clip does not clearly show a skill (e.g. the player never has to react athletically, or you cannot see their basketball IQ), return null for that skill instead of guessing a number.',
+  },
+  shooting: {
+    skills: ['shooting', 'shotForm'],
+    prompt: 'Watch this player shoot catch-and-shoot or pull-up jumpers. Score shooting and shotForm using a 1-10 rubric where: 1-2 = poor mechanics, 3-4 = inconsistent, 5-6 = solid repeatable, 7-8 = clean form with range, 9-10 = elite. Look at: release point, elbow alignment, follow through, balance, arc, consistency, makes vs attempts. CRITICAL: If the clip does not clearly show a skill, return null for that skill instead of guessing.',
+  },
+  finishing: {
+    skills: ['finishing', 'weakHand', 'touch'],
+    prompt: 'Watch this player finish at the rim with both hands. Score finishing, weakHand, and touch using a 1-10 rubric where: 1-2 = struggles, 3-4 = basic only, 5-6 = solid both hands, 7-8 = creative and reliable, 9-10 = elite. Look at: body control, off-hand finishing specifically, touch on the rim, ability to absorb contact. CRITICAL: weakHand should ONLY be scored if you actually see the player finish with their non-dominant hand. If they only used their strong hand, return null for weakHand. Same rule for any skill not clearly demonstrated.',
+  },
+  oneOnOne: {
+    skills: ['ballHandling', 'creativity', 'finishing', 'iq'],
+    prompt: 'Watch this 1-on-1 offensive possession. Score ballHandling, creativity, finishing, and iq using a 1-10 rubric where: 1-2 = beginner, 3-4 = developing, 5-6 = solid, 7-8 = advanced, 9-10 = elite. Look at: ball handling under pressure, ability to create space, move variety, finishing creativity, decision making against the defender. CRITICAL: If the clip does not clearly show a skill, return null for that skill instead of guessing.',
+  },
 };
 
-const CLIP_RUBRICS = {
-  '1on1': {
-    skills: ['ballHandling', 'finishing', 'defense', 'iq', 'athleticism'],
-    prompt: 'Watch this 1-on-1 basketball possession. Score the player on ballHandling, finishing, defense, iq, and athleticism using a 1-10 rubric where: 1-2 = beginner, 3-4 = developing, 5-6 = solid, 7-8 = advanced, 9-10 = elite varsity+. Look at: ball handling under pressure, ability to create space, finishing creativity, defensive stance, decision making, athletic movement.',
-  },
-  'threes': {
-    skills: ['shooting', 'shotForm'],
-    prompt: 'Watch this player shoot open three pointers. Score shooting and shotForm using a 1-10 rubric where: 1-2 = poor mechanics, 3-4 = inconsistent, 5-6 = solid repeatable, 7-8 = clean form with range, 9-10 = elite. Look at: release point, elbow alignment, follow through, balance, arc, consistency.',
-  },
-  'dribble': {
-    skills: ['ballHandling', 'weakHand', 'creativity'],
-    prompt: 'Watch this player do dribble combo moves. Score ballHandling, weakHand, and creativity using a 1-10 rubric where: 1-2 = high loose dribble, 3-4 = developing, 5-6 = tight controlled, 7-8 = advanced both hands, 9-10 = elite. Look at: dribble height, hand strength, weak hand control, move variety, tightness.',
-  },
-  'finishing': {
-    skills: ['finishing', 'weakHand', 'touch'],
-    prompt: 'Watch this player finish at the rim with both hands. Score finishing, weakHand, and touch using a 1-10 rubric where: 1-2 = struggles, 3-4 = basic only, 5-6 = solid both hands, 7-8 = creative, 9-10 = elite. Look at: body control, off-hand finishing, touch on rim.',
-  },
-  'game': {
-    skills: ['iq', 'courtVision', 'decisionMaking', 'finishing'],
-    prompt: 'Watch this real game footage. Score iq, courtVision, decisionMaking, and finishing using a 1-10 rubric where: 1-2 = limited awareness, 3-4 = developing, 5-6 = solid game sense, 7-8 = advanced playmaker, 9-10 = elite. Look at: how they read defense, pass selection, timing, court awareness, execution.',
-  },
+export const config = {
+  maxDuration: 300,
 };
 
 export default async function handler(req, res) {
@@ -33,92 +31,79 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const videoUrl = req.body.videoUrl;
-  const clipType = req.body.clipType;
-  const playerDescription = req.body.playerDescription || '';
+  const { videoUrl, clipType, playerDescription } = req.body;
 
-  if (!videoUrl || !clipType) return res.status(400).json({ error: 'Missing required fields' });
+  if (!videoUrl || !clipType) {
+    return res.status(400).json({ error: 'Missing videoUrl or clipType' });
+  }
 
-  const rubric = CLIP_RUBRICS[clipType];
-  if (!rubric) return res.status(400).json({ error: 'Invalid clip type' });
+  const rubric = RUBRICS[clipType];
+  if (!rubric) {
+    return res.status(400).json({ error: 'Invalid clipType. Must be one of: defense, shooting, finishing, oneOnOne' });
+  }
 
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return res.status(500).json({ error: 'API key not configured' });
+  if (!apiKey) {
+    return res.status(500).json({ error: 'GEMINI_API_KEY not configured' });
+  }
 
   const playerIdSection = playerDescription
-    ? 'IMPORTANT: The player you are evaluating is described as: "' + playerDescription + '". This description is critical - only score THIS specific player, not anyone else in the video. If you cannot identify them, evaluate the most prominent player. '
+    ? 'IMPORTANT: The player you are evaluating is described as: "' + playerDescription + '". Only score THIS specific player, not anyone else in the video. If you cannot identify them, evaluate the most prominent player. '
     : '';
 
-  const skillsList = rubric.skills.map(s => '"' + s + '": <number 1-10>').join(', ');
+  const skillsList = rubric.skills.map(s => '"' + s + '": <number 1-10 OR null>').join(', ');
   const prompt = playerIdSection + rubric.prompt + ' Return ONLY valid JSON with no markdown, no backticks, no explanation. Format: {' + skillsList + ', "feedback": "1 sentence", "highlight": "best thing", "fix": "biggest fix"}';
 
   try {
-    console.log('Downloading video:', videoUrl);
+    // Step 1: download the video from Supabase
     const videoRes = await fetch(videoUrl);
     if (!videoRes.ok) {
-      console.error('Video download failed:', videoRes.status);
-      return res.status(500).json({ error: 'Failed to download video' });
+      return res.status(500).json({ error: 'Failed to download video from storage' });
     }
-
     const videoBuffer = Buffer.from(await videoRes.arrayBuffer());
-    const videoSize = videoBuffer.length;
-    console.log('Video size:', videoSize);
 
-    if (videoSize === 0) return res.status(500).json({ error: 'Video file is empty' });
-
-    const startRes = await fetch(
+    // Step 2: upload to Gemini File API
+    const uploadRes = await fetch(
       'https://generativelanguage.googleapis.com/upload/v1beta/files?key=' + apiKey,
       {
         method: 'POST',
         headers: {
-          'X-Goog-Upload-Protocol': 'resumable',
-          'X-Goog-Upload-Command': 'start',
-          'X-Goog-Upload-Header-Content-Length': videoSize.toString(),
-          'X-Goog-Upload-Header-Content-Type': 'video/mp4',
-          'Content-Type': 'application/json',
+          'X-Goog-Upload-Protocol': 'raw',
+          'Content-Type': 'video/mp4',
         },
-        body: JSON.stringify({ file: { display_name: 'assess_' + clipType + '_' + Date.now() } }),
+        body: videoBuffer,
       }
     );
 
-    const uploadUrl = startRes.headers.get('x-goog-upload-url');
-    if (!uploadUrl) return res.status(500).json({ error: 'Failed to init upload' });
-
-    const uploadRes = await fetch(uploadUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Length': videoSize.toString(),
-        'X-Goog-Upload-Offset': '0',
-        'X-Goog-Upload-Command': 'upload, finalize',
-      },
-      body: videoBuffer,
-    });
-
-    const fileInfo = await uploadRes.json();
-    const fileUri = fileInfo.file?.uri;
-    const fileName = fileInfo.file?.name;
-
-    if (!fileUri) {
-      console.error('No file URI:', JSON.stringify(fileInfo).substring(0, 300));
-      return res.status(500).json({ error: 'Upload to Gemini failed' });
+    if (!uploadRes.ok) {
+      const errText = await uploadRes.text();
+      console.error('Gemini upload failed:', errText);
+      return res.status(500).json({ error: 'Failed to upload to Gemini' });
     }
 
-    console.log('Uploaded to Gemini:', fileUri);
+    const uploadData = await uploadRes.json();
+    const fileUri = uploadData.file.uri;
+    const fileName = uploadData.file.name;
 
-    let fileState = fileInfo.file?.state;
-    let waitTime = 0;
-    while (fileState !== 'ACTIVE' && waitTime < 120000) {
+    // Step 3: poll until file is ACTIVE (Gemini needs to process the video)
+    let fileState = uploadData.file.state;
+    let pollAttempts = 0;
+    while (fileState === 'PROCESSING' && pollAttempts < 24) {
       await new Promise(r => setTimeout(r, 5000));
-      waitTime += 5000;
-      const checkRes = await fetch('https://generativelanguage.googleapis.com/v1beta/' + fileName + '?key=' + apiKey);
-      const checkData = await checkRes.json();
-      fileState = checkData.state;
-      console.log('State:', fileState, 'wait:', waitTime);
+      const stateRes = await fetch(
+        'https://generativelanguage.googleapis.com/v1beta/' + fileName + '?key=' + apiKey
+      );
+      const stateData = await stateRes.json();
+      fileState = stateData.state;
+      pollAttempts++;
     }
 
-    if (fileState !== 'ACTIVE') return res.status(500).json({ error: 'Video processing took too long' });
+    if (fileState !== 'ACTIVE') {
+      return res.status(500).json({ error: 'Video processing timed out or failed' });
+    }
 
-    const genRes = await fetch(
+    // Step 4: send to Gemini for analysis
+    const analyzeRes = await fetch(
       'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey,
       {
         method: 'POST',
@@ -126,52 +111,38 @@ export default async function handler(req, res) {
         body: JSON.stringify({
           contents: [{
             parts: [
-              { file_data: { mime_type: 'video/mp4', file_uri: fileUri } },
+              { fileData: { fileUri: fileUri, mimeType: 'video/mp4' } },
               { text: prompt },
             ],
           }],
-          generationConfig: { maxOutputTokens: 1500, temperature: 0.4 },
         }),
       }
     );
 
-    const data = await genRes.json();
-
-    if (!genRes.ok) {
-      console.error('Gemini gen error:', JSON.stringify(data).substring(0, 500));
-      return res.status(500).json({ error: 'Failed to analyze' });
+    if (!analyzeRes.ok) {
+      const errText = await analyzeRes.text();
+      console.error('Gemini analyze failed:', errText);
+      return res.status(500).json({ error: 'Gemini analysis failed' });
     }
 
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!text) {
-      console.error('No text:', JSON.stringify(data).substring(0, 300));
-      return res.status(500).json({ error: 'No analysis returned' });
-    }
+    const analyzeData = await analyzeRes.json();
+    let responseText = analyzeData.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
-    console.log('Got text length:', text.length);
+    // Strip markdown backticks if Gemini wrapped the JSON
+    responseText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
 
-    let cleanText = text.trim();
-    if (cleanText.startsWith('```')) {
-      cleanText = cleanText.replace(/^```(?:json)?\s*/, '').replace(/```\s*$/, '');
-    }
-
-    const start = cleanText.indexOf('{');
-    const end = cleanText.lastIndexOf('}');
-    if (start === -1 || end === -1) return res.status(500).json({ error: 'Failed to parse response' });
-
-    let assessment;
+    let parsed;
     try {
-      assessment = JSON.parse(cleanText.substring(start, end + 1));
-    } catch (parseErr) {
-      console.error('JSON parse error:', parseErr.message);
-      console.error('Attempted:', cleanText.substring(start, end + 1).substring(0, 300));
-      return res.status(500).json({ error: 'Failed to parse JSON' });
+      parsed = JSON.parse(responseText);
+    } catch (e) {
+      console.error('Failed to parse Gemini response:', responseText.substring(0, 300));
+      return res.status(500).json({ error: 'Failed to parse Gemini response' });
     }
 
-    assessment.clipType = clipType;
-    return res.status(200).json(assessment);
+    parsed.clipType = clipType;
+    return res.status(200).json(parsed);
   } catch (error) {
-    console.error('Assess error:', error.message || error);
-    return res.status(500).json({ error: error.message || 'Failed to assess clip' });
+    console.error('assess-clip error:', error);
+    return res.status(500).json({ error: error.message || 'Internal error' });
   }
 }
