@@ -35,14 +35,20 @@ export default async function handler(req, res) {
     const strongest = sorted.slice(-3).reverse().map(([k, v]) => (SKILL_LABELS[k] || k) + ' (' + v + '/10)').join(', ');
     const allScores = Object.entries(skillLevels).map(([k, v]) => (SKILL_LABELS[k] || k) + ': ' + v).join(', ');
 
+    const drillTargets = sorted.filter(([k, v]) => v < 7).slice(0, 3).map(([k, v]) => (SKILL_LABELS[k] || k) + ' (' + v + '/10)').join(', ') || 'none — player is solid across the board';
+
     skillSection = `
 
 COACH X ASSESSMENT (from watching their actual film):
-ALL SKILL LEVELS: ${allScores}
-WEAKEST 3 SKILLS (focus most drills here): ${weakest}
-STRONGEST 3 SKILLS (build on these): ${strongest}
+SKILLS SCORED: ${allScores}
+SKILLS THAT NEED WORK (below 7/10): ${drillTargets}
+STRONGEST 3 SKILLS (build on these, do NOT drill these): ${strongest}
 
-CRITICAL: This player was watched on film. Build the plan to attack the weakest skills hardest. At least 60% of skill drills should target the bottom 3 skills. In the coachSummary.assessment, talk to the player like you just watched them - reference what you saw in their specific clips, mention their weakest skills by name, and acknowledge their strongest. Be direct, honest, and encouraging.`;
+CRITICAL RULES based on assessment:
+1. ONLY generate skill drills for skills scored below 7/10. A score of 7+ means the player is already solid at that skill — DO NOT waste their time drilling it. Acknowledge it instead.
+2. If a skill is NOT in the SKILLS SCORED list above, it was not visible in any clip. DO NOT generate drills for it unless it matches the player's stated weakness ("${weakness}").
+3. If the player has fewer than 3 skills below 7/10, fill the remaining drill time with their stated weakness ("${weakness}") and conditioning.
+4. In coachSummary.assessment, talk to the player like you just watched them. Reference specific skills you saw. Mention what they're already good at AND what needs work. Be direct, honest, and encouraging.`;
   }
 
   const prompt = `You are Coach X, an elite basketball trainer talking directly to a player. Build a personalized weekly training plan.
