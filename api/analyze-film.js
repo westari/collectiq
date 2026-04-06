@@ -83,8 +83,8 @@ export default async function handler(req, res) {
     var fileState = fileInfo.file?.state;
     var attempts = 0;
 
-    while (fileState === 'PROCESSING' && attempts < 30) {
-      await new Promise(r => setTimeout(r, 2000));
+    while (fileState === 'PROCESSING' && attempts < 12) {
+      await new Promise(r => setTimeout(r, 3000));
       var checkRes = await fetch(
         'https://generativelanguage.googleapis.com/v1beta/' + fileName + '?key=' + apiKey
       );
