@@ -10,9 +10,9 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { videoBase64, mimeType, profile } = req.body;
+  const { videoUrl, profile } = req.body;
 
-  if (!videoBase64) return res.status(400).json({ error: 'Video is required' });
+  if (!videoUrl) return res.status(400).json({ error: 'Video URL is required' });
 
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return res.status(500).json({ error: 'Gemini API key not configured' });
@@ -63,9 +63,9 @@ Analyze the video and return ONLY valid JSON with no markdown or backticks:
           contents: [{
             parts: [
               {
-                inlineData: {
-                  mimeType: mimeType || 'video/mp4',
-                  data: videoBase64,
+                fileData: {
+                  mimeType: 'video/mp4',
+                  fileUri: videoUrl,
                 },
               },
               { text: prompt },
@@ -82,7 +82,7 @@ Analyze the video and return ONLY valid JSON with no markdown or backticks:
     const data = await response.json();
 
     if (!response.ok) {
-      console.error('Gemini error:', JSON.stringify(data));
+      console.error('Gemini error:', JSON.stringify(data).substring(0, 500));
       return res.status(500).json({ error: 'Failed to analyze video' });
     }
 
