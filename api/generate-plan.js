@@ -193,13 +193,13 @@ function buildWhereYouPlaySection(body) {
 
   // Team membership
   if (body.schoolTeam && body.schoolTeam !== 'No school team') {
-    lines.push('School team: ' + body.schoolTeam + ' (' + (body.schoolStarter || 'role unspecified') + ')');
+    lines.push('School team: ' + body.schoolTeam + ' (' + (body.starter || 'role unspecified') + ')');
   }
   if (body.playsAAU === 'Yes' && body.aauCircuit) {
     lines.push('AAU: ' + body.aauCircuit + ' (' + (body.aauStarter || 'role unspecified') + ')');
   }
   if (body.collegeLevel && body.collegeLevel !== 'No college team') {
-    lines.push('College: ' + body.collegeLevel + ' (' + (body.collegeStarter || 'role unspecified') + ')');
+    lines.push('College: ' + body.collegeLevel + ' (' + (body.starter || 'role unspecified') + ')');
   }
   if (body.adultPlay) {
     lines.push('Plays: ' + body.adultPlay);
