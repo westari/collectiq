@@ -103,10 +103,23 @@ const DRILL_LIBRARY = {
   ],
 };
 
+// Maps the library category keys to our 12 skill_state categories
+const CATEGORY_TO_SKILL = {
+  ballHandling: 'ballHandling',
+  shooting: 'shooting',
+  finishing: 'finishing',
+  defense: 'defense',
+  speedAgility: 'athleticism',
+  warmup: 'athleticism',
+  conditioning: 'athleticism',
+  basketballIQ: 'iq',
+};
+
 function buildLibraryString() {
   let s = '';
   for (const [category, drills] of Object.entries(DRILL_LIBRARY)) {
-    s += '\n' + category.toUpperCase() + ':\n' + drills.join('\n') + '\n';
+    const skillTag = CATEGORY_TO_SKILL[category] || category;
+    s += '\n' + category.toUpperCase() + ' (primarySkill: "' + skillTag + '"):\n' + drills.join('\n') + '\n';
   }
   return s;
 }
@@ -190,7 +203,7 @@ ${libraryString}
 
 CRITICAL DRILL SELECTION RULES:
 - Every drill you put in the plan MUST come from the library above.
-- For each drill, you MUST return both the "drillId" (e.g. "sh-1") AND the "name" (e.g. "Form Shooting") exactly as written in the library.
+- For each drill, you MUST return ALL THREE fields: "drillId" (e.g. "sh-1"), "name" (e.g. "Form Shooting"), AND "primarySkill" (e.g. "shooting"). Use the primarySkill tag shown in parentheses next to each category heading.
 - DO NOT invent new drill names. DO NOT modify drill names. Use them EXACTLY as written.
 - Pick drills that match the player's needs based on the assessment scores and quiz answers.
 - Mix difficulty levels appropriately for the player's experience.
@@ -205,7 +218,7 @@ PLAN STRUCTURE RULES:
 7. coachSummary.assessment should sound like Coach X talking directly to the player, 2-3 sentences
 
 Return ONLY valid JSON, no markdown, no backticks:
-{"weekTitle":"Week 1: Short Theme","aiInsight":"...","coachSummary":{"greeting":"...","assessment":"Coach X talking directly to player","planOverview":"...","motivation":"..."},"days":[{"day":"Mon","date":"","focus":"SHORT (1-3 words)","duration":"... min","isRest":false,"drills":[{"drillId":"sh-1","name":"Form Shooting","time":"10 min","type":"shooting","detail":"why this drill for this player"}]}]}
+{"weekTitle":"Week 1: Short Theme","aiInsight":"...","coachSummary":{"greeting":"...","assessment":"Coach X talking directly to player","planOverview":"...","motivation":"..."},"days":[{"day":"Mon","date":"","focus":"SHORT (1-3 words)","duration":"... min","isRest":false,"drills":[{"drillId":"sh-1","name":"Form Shooting","primarySkill":"shooting","time":"10 min","type":"shooting","detail":"why this drill for this player"}]}]}
 
 Include all 7 days Mon-Sun. Rest days: isRest true, drills empty array, duration "---".`;
 
