@@ -124,6 +124,134 @@ function buildLibraryString() {
   return s;
 }
 
+// Stats benchmark reference — helps Claude interpret raw stats in context
+const STATS_BENCHMARK = `
+STATS BENCHMARK REFERENCE (use this to interpret the player's stats in context):
+
+TIER 1 — Elite (Nike EYBL, UAA, Adidas 3SSB, D1 College)
+Scorers: Star 15+ ppg / Starter 7-15 ppg / Rotation 3-8 ppg / Bench 1-4 ppg (still elite skill)
+Playmakers (PG): Star 5+ apg / Starter 3-5 apg / Rotation 1-3 apg
+Rebounders (big): Star 7+ rpg / Starter 4-7 rpg / Rotation 2-4 rpg
+KEY: Just making the roster = elite skill. 3 ppg EYBL bench > 20 ppg rec league scorer.
+
+TIER 2 — High Competitive (Puma Pro 16, New Balance, other shoe, Made Hoops, AGame, HS Varsity, D2/D3)
+Scorers: Star 12+ ppg / Starter 5-12 ppg / Rotation 2-6 ppg / Bench 0-3 ppg
+Playmakers: Star 4+ apg / Starter 2-4 apg
+Rebounders: Star big 6+ rpg / Starter big 3-6 rpg
+KEY: Stats similar to T1 — good scorers score anywhere, just weaker comp.
+
+TIER 3 — Mid Competitive (Local AAU, HS JV, JUCO, strong middle school AAU)
+Scorers: Star 15+ ppg (often higher, weaker D) / Starter 6-12 ppg / Rotation 3-7 ppg / Bench 0-3 ppg
+Playmakers: Star 4+ apg / Starter 2-4 apg
+Rebounders: Star big 7+ rpg / Starter big 4-7 rpg
+KEY: Scoring inflates. 20 ppg T3 star ≈ 12 ppg T1 rotation.
+
+TIER 4 — Developing (HS Freshman, weak middle school, intramural, rec, church league)
+Scorers: Top 12+ ppg / Contributor 4-10 ppg / Role <4 ppg
+Playmakers: Top 3+ apg / Contributor 1-3 apg
+Rebounders: Top big 6+ rpg / Contributor big 3-6 rpg
+KEY: Stats mean less here. Weight self-reported goal and weakness more than numbers.
+
+MINUTES CONTEXT:
+- 2-10 min/game: End of bench. At T1 still a skill signal. At T3-T4 weak.
+- 10-20 min/game: Rotation. Use per-30 stats (stat / minutes × 30).
+- 20-28 min/game: Starter. Stats representative.
+- 28+ min/game: Star or full-time starter. Stats = true output.
+
+ROLE WEIGHTING (don't punish role players):
+- PG with low ppg + high apg = GOOD, not weak shooter.
+- Big with low ppg + high rpg = GOOD, rate finishing/rebounding up.
+- Wing with high ppg + low apg = scorer, normal.
+- Balanced stats = high BBIQ signal.
+`;
+
+// Build the "how they play" section from the new onboarding fields
+function buildWhereYouPlaySection(body) {
+  const lines = [];
+
+  if (body.grade) lines.push('Grade: ' + body.grade);
+
+  // Determine tier from circuit + school team + college level
+  let tier = null;
+  if (body.aauCircuit === 'Top shoe circuit') tier = 1;
+  else if (body.aauCircuit === 'Mid shoe circuit' || body.aauCircuit === 'Independent circuit') tier = 2;
+  else if (body.aauCircuit === 'Local circuit') tier = 3;
+
+  if (body.schoolTeam === 'Varsity' && !tier) tier = 2;
+  else if (body.schoolTeam === 'JV' && (!tier || tier > 3)) tier = 3;
+  else if ((body.schoolTeam === 'Freshman team' || body.schoolTeam === 'Middle school team') && (!tier || tier > 4)) tier = 4;
+
+  if (body.collegeLevel === 'D1' && !tier) tier = 1;
+  else if ((body.collegeLevel === 'D2' || body.collegeLevel === 'D3') && (!tier || tier > 2)) tier = 2;
+  else if ((body.collegeLevel === 'JUCO' || body.collegeLevel === 'NAIA') && (!tier || tier > 3)) tier = 3;
+  else if ((body.collegeLevel === 'Club / intramural') && (!tier || tier > 4)) tier = 4;
+
+  if (body.adultPlay === 'Competitive rec league' && !tier) tier = 3;
+  else if ((body.adultPlay === 'Casual rec league' || body.adultPlay === 'Pickup / open gym') && !tier) tier = 4;
+
+  if (tier) lines.push('Competition Tier: ' + tier + ' (see benchmark reference)');
+
+  // Team membership
+  if (body.schoolTeam && body.schoolTeam !== 'No school team') {
+    lines.push('School team: ' + body.schoolTeam + ' (' + (body.schoolStarter || 'role unspecified') + ')');
+  }
+  if (body.playsAAU === 'Yes' && body.aauCircuit) {
+    lines.push('AAU: ' + body.aauCircuit + ' (' + (body.aauStarter || 'role unspecified') + ')');
+  }
+  if (body.collegeLevel && body.collegeLevel !== 'No college team') {
+    lines.push('College: ' + body.collegeLevel + ' (' + (body.collegeStarter || 'role unspecified') + ')');
+  }
+  if (body.adultPlay) {
+    lines.push('Plays: ' + body.adultPlay);
+  }
+
+  // Role
+  if (body.role) lines.push('Role: ' + body.role);
+
+  // Stats
+  if (body.stats) {
+    const s = body.stats;
+    const statParts = [];
+    if (s.minutes) statParts.push(s.minutes + ' min/game');
+    if (s.ppg) statParts.push(s.ppg + ' PPG');
+    if (s.apg) statParts.push(s.apg + ' APG');
+    if (s.rpg) statParts.push(s.rpg + ' RPG');
+    if (statParts.length > 0) {
+      lines.push('Stats: ' + statParts.join(', '));
+      // Compute per-30 if minutes present
+      const mins = parseFloat(s.minutes);
+      if (mins && mins < 20) {
+        const per30 = [];
+        if (s.ppg) per30.push('PPG: ' + ((parseFloat(s.ppg) / mins) * 30).toFixed(1));
+        if (s.apg) per30.push('APG: ' + ((parseFloat(s.apg) / mins) * 30).toFixed(1));
+        if (s.rpg) per30.push('RPG: ' + ((parseFloat(s.rpg) / mins) * 30).toFixed(1));
+        if (per30.length > 0) lines.push('Per-30 (extrapolated due to low minutes): ' + per30.join(', '));
+      }
+    } else {
+      lines.push('Stats: not provided');
+    }
+  }
+
+  return lines.length > 0 ? lines.join('\n') : 'No league info provided';
+}
+
+// Build the shooting makes section
+function buildShootingSection(body) {
+  if (!body.shootingMakes) return '';
+  const m = body.shootingMakes;
+  const lines = [];
+  if (m.layupStrong !== undefined && m.layupStrong !== '') lines.push('Strong-hand layups: ' + m.layupStrong + '/10');
+  if (m.layupWeak !== undefined && m.layupWeak !== '') lines.push('Weak-hand layups: ' + m.layupWeak + '/10');
+  if (m.freeThrows !== undefined && m.freeThrows !== '') lines.push('Free throws: ' + m.freeThrows + '/10');
+  if (m.midRange !== undefined && m.midRange !== '') lines.push('Mid-range: ' + m.midRange + '/10');
+  if (m.threes !== undefined && m.threes !== '') lines.push('3-pointers: ' + m.threes + '/10');
+  if (lines.length === 0) return '';
+  return `
+SHOOTING MAKES (out of 10 wide open shots — player self-report):
+${lines.join('\n')}
+Interpret: 7-10 = strong, 4-6 = developing, 0-3 = weakness. These are self-reported so treat as directional, not gospel.`;
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -132,11 +260,16 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { sport, position, experience, goal, weakness, driving, leftHand, pressure, goToMove, threeConfidence, freeThrow, frequency, duration, access, skillLevels, description } = req.body;
+  const body = req.body;
+  const { sport, position, experience, goal, weakness, driving, leftHand, pressure, goToMove, threeConfidence, freeThrow, frequency, duration, access, skillLevels, description, dribbling } = body;
 
-  if (!sport || !position || !experience || !goal || !weakness || !frequency || !duration || !access) {
+  if (!sport || !position || !goal || !frequency || !duration || !access) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
+
+  // Context sections from new onboarding
+  const whereSection = buildWhereYouPlaySection(body);
+  const shootingSection = buildShootingSection(body);
 
   let skillSection = '';
   let assessmentMode = 'quiz_only';
@@ -162,41 +295,39 @@ SKILLS THAT NEED WORK (below 7/10): ${drillTargets}
 STRONGEST SKILLS (build on these, do NOT drill these): ${strongest}
 
 CRITICAL RULES based on assessment:
-1. ONLY generate skill drills for skills scored below 7/10. A score of 7+ means the player is already solid — DO NOT waste their time drilling it. Acknowledge it instead.
-2. If a skill is NOT in the SKILLS SCORED list above, it was not visible in any clip. DO NOT generate drills for it unless it matches the player's stated weakness ("${weakness}").
-3. If the player has fewer than 3 skills below 7/10, fill remaining drill time with their stated weakness ("${weakness}") and conditioning.
+1. ONLY generate skill drills for skills scored below 7/10.
+2. If a skill is NOT in SKILLS SCORED, don't drill it unless it matches stated weakness ("${weakness}").
+3. If fewer than 3 skills below 7/10, fill remaining time with stated weakness and conditioning.
 
-CRITICAL HONESTY RULES for coachSummary.assessment:
-- You did NOT personally watch the film. You only have NUMERIC SCORES from a film analyst.
-- You may reference the SKILL NAMES and their SCORES (e.g. "your shot form scored a 6, which is solid but we can push it higher").
-- You MAY NOT invent specific behaviors, actions, or moments you didn't see. Examples of FORBIDDEN inventions: "you pass out instead of finishing", "you play it safe", "you defer to teammates", "you hesitate under pressure", "you settle for jumpers", "your handle breaks down when guarded". You did not see any of these things — you only have numbers.
-- Talk about the SKILLS, not invented stories. Bad: "you're playing it safe instead of being creative." Good: "your creativity scored a 5, so we're going to add some moves to your arsenal."
-- 2-3 sentences. Direct, honest, encouraging. Reference real scores only.`;
+coachSummary.assessment: 2-3 sentences. Reference real scores only. DO NOT invent specific behaviors you didn't see.`;
   } else {
     skillSection = `
 
-NO FILM ASSESSMENT AVAILABLE - quiz only.
-The player did not upload film or assessment failed. Build the plan from quiz answers only.
-In coachSummary.assessment, DO NOT pretend to have watched film. Say something like "I haven't seen you play yet, but based on what you told me..." Be honest that this is a starter plan and will improve once they upload film.`;
+NO FILM ASSESSMENT — using onboarding answers only.
+Build the plan from the player's self-reported info below. In coachSummary.assessment, say something like "I haven't seen you play yet, but based on what you told me..." and reference specific things they reported (their role, stats, shooting makes, etc.).`;
   }
 
   const libraryString = buildLibraryString();
 
   const prompt = `You are Coach X, an elite basketball trainer talking directly to a player. Build a personalized weekly training plan.
 
-PLAYER: ${position}, ${experience} experience
+PLAYER: ${position}${experience ? ', ' + experience : ''}
 ${description ? 'DESCRIBED AS: ' + description : ''}
 GOAL: ${goal}
 STATED WEAKNESS: ${weakness}
-DRIVING: ${driving || 'not specified'}
-LEFT HAND: ${leftHand || 'not specified'}
-UNDER PRESSURE: ${pressure || 'not specified'}
-GO-TO MOVE: ${goToMove || 'not specified'}
-THREE CONFIDENCE: ${threeConfidence || 'not specified'}
-FREE THROW: ${freeThrow || 'not specified'}
+DRIBBLING: ${dribbling || 'not specified'}
+
+WHERE THEY PLAY:
+${whereSection}
+
+${shootingSection}
+
 FREQUENCY: ${frequency}
 SESSION LENGTH: ${duration}
-FACILITIES: ${Array.isArray(access) ? access.join(', ') : access}${skillSection}
+FACILITIES: ${Array.isArray(access) ? access.join(', ') : access}
+${skillSection}
+
+${STATS_BENCHMARK}
 
 DRILL LIBRARY (you MUST pick drills from this list — do not invent new drills):
 ${libraryString}
@@ -205,17 +336,22 @@ CRITICAL DRILL SELECTION RULES:
 - Every drill you put in the plan MUST come from the library above.
 - For each drill, you MUST return ALL THREE fields: "drillId" (e.g. "sh-1"), "name" (e.g. "Form Shooting"), AND "primarySkill" (e.g. "shooting"). Use the primarySkill tag shown in parentheses next to each category heading.
 - DO NOT invent new drill names. DO NOT modify drill names. Use them EXACTLY as written.
-- Pick drills that match the player's needs based on the assessment scores and quiz answers.
-- Mix difficulty levels appropriately for the player's experience.
+- Use role, tier, stats, and shooting makes to shape the plan:
+  * Low shooting makes → add shooting drills
+  * Low weak-hand layups → add weak-hand finishing drills (fn-4, fn-26) and weak-hand handling (bh-20, bh-30)
+  * "Playmaker" role → include more iq drills (iq-*), less pure scoring
+  * "Defensive stopper" role → weight defense drills heavily
+  * "Rebounder / rim protector" → finishing + defense + box-out heavy, less perimeter shooting
+  * "Still figuring out my role" → balanced plan, lighter on specialization
 
 PLAN STRUCTURE RULES:
 1. Session duration MUST match "${duration}" exactly
-2. If left hand is weak, include a weak hand drill EVERY session (e.g. bh-20, bh-30, fn-4, fn-26)
+2. If dribbling is weak, include a weak hand drill EVERY session (e.g. bh-20, bh-30, fn-4, fn-26)
 3. Include rest days based on "${frequency}"
 4. 6-10 drills per session: warmup first (from wu-* drills), skills middle, conditioning last (from cd-* drills)
 5. CRITICAL: Day "focus" must be SHORT (1-3 words max). Examples: "Ball Handling", "Defense", "Left Hand", "Shooting", "Finishing". NEVER long descriptive titles.
 6. Each drill needs a "time" field (e.g. "10 min")
-7. coachSummary.assessment should sound like Coach X talking directly to the player, 2-3 sentences
+7. coachSummary.assessment should sound like Coach X talking directly to the player, 2-3 sentences, referencing their specific role/tier/stats/makes.
 
 Return ONLY valid JSON, no markdown, no backticks:
 {"weekTitle":"Week 1: Short Theme","aiInsight":"...","coachSummary":{"greeting":"...","assessment":"Coach X talking directly to player","planOverview":"...","motivation":"..."},"days":[{"day":"Mon","date":"","focus":"SHORT (1-3 words)","duration":"... min","isRest":false,"drills":[{"drillId":"sh-1","name":"Form Shooting","primarySkill":"shooting","time":"10 min","type":"shooting","detail":"why this drill for this player"}]}]}
@@ -223,6 +359,7 @@ Return ONLY valid JSON, no markdown, no backticks:
 Include all 7 days Mon-Sun. Rest days: isRest true, drills empty array, duration "---".`;
 
   console.log('generate-plan mode:', assessmentMode, 'skillLevels:', JSON.stringify(skillLevels || {}));
+  console.log('where section:', whereSection);
 
   try {
     const message = await anthropic.messages.create({
