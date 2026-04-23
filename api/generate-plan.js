@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { applySecurity } from './_middleware.js';
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -9,19 +10,17 @@ export const config = {
 };
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-API-Secret');
+  // ---------- SECURITY CHECKS ----------
+  // Handles CORS, OPTIONS preflight, method check, API secret, rate limiting.
+  // Plan generation costs API $, so rate-limit harder: 10 plans per IP per hour.
+  const security = applySecurity(req, res, {
+    rateLimit: 10,
+    rateLimitWindowMs: 60 * 60 * 1000,
+    maxBodySize: 512 * 1024, // 512 KB — plans are small JSON payloads
+  });
+  if (!security.ok) return; // response already sent
 
-  if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-
-  // Optional API secret check — enable when you set API_SECRET in Vercel env
-  // Uncomment to enable:
-  // if (process.env.API_SECRET && req.headers['x-api-secret'] !== process.env.API_SECRET) {
-  //   return res.status(401).json({ error: 'Unauthorized' });
-  // }
-
+  // ---------- VALIDATE INPUT ----------
   const {
     sport, position, experience, goal, weakness,
     driving, leftHand, pressure, goToMove, threeConfidence, freeThrow,
@@ -29,13 +28,13 @@ export default async function handler(req, res) {
     grade, schoolTeam, playsAAU, aauCircuit, aauStarter,
     starter, collegeLevel, adultPlay, role, stats,
     shootingMakes, dribbling,
-  } = req.body;
+  } = req.body || {};
 
   if (!sport || !position || !frequency || !duration || !access) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
 
-  // Build skill section — stop claiming "watched on film"
+  // ---------- BUILD PROMPT ----------
   let skillSection = '';
   if (skillLevels && Object.keys(skillLevels).length > 0) {
     const SKILL_LABELS = {
@@ -61,7 +60,6 @@ CRITICAL: These skill levels were estimated from the player's self-reported shoo
 In coachSummary.assessment, talk directly to the player. Reference their weakest skills by name, acknowledge their strongest. Be direct and honest. Use language like "based on what you told me" or "from your answers" — do NOT claim you watched their film or video.`;
   }
 
-  // Level/competition context
   let levelContext = '';
   if (grade) {
     const levelBits = [];
@@ -79,7 +77,6 @@ In coachSummary.assessment, talk directly to the player. Reference their weakest
     levelContext = levelBits.length > 0 ? `\n\nCOMPETITIVE CONTEXT:\n${levelBits.join('\n')}` : '';
   }
 
-  // Filter out "not specified" fields
   const fields = [
     ['DRIVING', driving],
     ['LEFT HAND', leftHand],
@@ -90,7 +87,6 @@ In coachSummary.assessment, talk directly to the player. Reference their weakest
   ].filter(([, v]) => v && v !== 'not specified');
   const fieldLines = fields.length > 0 ? '\n' + fields.map(([k, v]) => `${k}: ${v}`).join('\n') : '';
 
-  // Shooting makes detail
   let makesLine = '';
   if (shootingMakes) {
     const parts = [];
@@ -129,6 +125,7 @@ Return ONLY valid JSON, no markdown, no backticks:
 
 Include all 7 days Mon-Sun. Rest days: isRest true, drills empty array, duration "---".`;
 
+  // ---------- CALL CLAUDE WITH RETRY ----------
   try {
     let plan = null;
     let attempts = 0;
@@ -153,7 +150,6 @@ Include all 7 days Mon-Sun. Rest days: isRest true, drills empty array, duration
         const jsonString = responseText.substring(start, end + 1);
         plan = JSON.parse(jsonString);
 
-        // Normalize isRest to boolean
         if (Array.isArray(plan.days)) {
           plan.days = plan.days.map(d => ({
             ...d,
