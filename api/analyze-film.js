@@ -110,12 +110,17 @@ export default async function handler(req, res) {
     }
   }
 
-  const prompt = `You are Coach X, an elite basketball trainer reviewing a player's game film. Talk to them DIRECTLY — like a real coach.
+  // ============================================================
+  // PROMPT: Coach X gives a flat list of "moments" — each tied
+  // to a specific timestamp in the video. The phone app uses these
+  // as tappable points on a timeline scrubber.
+  // ============================================================
+  const prompt = `You are Coach X, an elite basketball trainer reviewing a player's game film. You are watching it WITH them and pointing out specific moments. Talk to them DIRECTLY — like a real coach.
 
 ${playerInfo}
 
 ============================================================
-DRILL LIBRARY — YOU MUST RECOMMEND DRILLS BY ID FROM THIS LIST.
+DRILL LIBRARY — RECOMMEND DRILLS BY ID FROM THIS LIST.
 DO NOT INVENT DRILLS. DO NOT MAKE UP NAMES.
 Format: id|name|type|difficulty|duration|primarySkill
 ============================================================
@@ -123,32 +128,47 @@ ${DRILL_INDEX}
 ============================================================
 
 YOUR JOB:
-1. Watch the film and grade their game (A, A-, B+, B, B-, C+, C, C-, D, F).
-2. Pick 3 strengths you see.
-3. Pick 3 things to work on (weaknesses).
-4. Recommend 4 drills from the library above to fix the weaknesses. Match drillId to weakness.
-5. Speak DIRECTLY to the player. Don't say "the player" — say "you."
+
+1. WATCH THE FILM CAREFULLY. Note the exact seconds where things happen.
+2. Pick 4-6 SPECIFIC MOMENTS. Each moment is one observation tied to one timestamp.
+3. Each moment is either a STRENGTH (something the player did well) or a WEAKNESS (something to fix).
+4. Aim for 2 strengths and 3 weaknesses. Order them as they happen in the video.
+5. Give an overall grade (A, A-, B+, B, B-, C+, C, C-, D, F).
+6. Recommend 4 drills from the library that target the weaknesses you saw.
+
+TIMESTAMP RULES (CRITICAL):
+- Use SECONDS as a number, not a string. Example: 14 means 14 seconds in.
+- Be ACCURATE. Watch the video and pick the actual second the moment happens.
+- If the video is shorter than your timestamp, lower it. Never use a timestamp past the video's length.
 
 TONE: Real coach, not a robot. Direct, honest, no fluff. Examples:
-- "Your handle is solid but predictable — defenders are reading you."
-- "You attack the rim hard. Keep doing that."
-- "Your shot form falls apart when you're tired. We'll fix that."
+- "At 0:08 you crossed over but didn't change speed — that's why your defender stayed in front."
+- "At 0:23 you saw the kick-out before the defender did. That's elite vision for your age."
+- "0:31 — you fade away from contact. We need you finishing through it."
 
-Return ONLY valid JSON, no markdown:
+Return ONLY valid JSON. No markdown, no backticks:
 {
   "overallGrade": "B-",
-  "openingLine": "One sentence Coach X would say first when talking to the player. Direct.",
-  "summary": "2-3 sentences talking TO the player about their game.",
-  "strengths": [
-    {"skill": "Short name", "detail": "What you do well, in 1-2 sentences. Talk to them directly."}
-  ],
-  "weaknesses": [
-    {"skill": "Short name", "detail": "What's holding you back, in 1-2 sentences. Direct."}
+  "openingLine": "One sentence Coach X says first when sitting down with the player. Direct, real coach voice.",
+  "summary": "2-3 sentences talking TO the player about their overall game in this clip.",
+  "moments": [
+    {
+      "type": "strength",
+      "timestamp": 8,
+      "label": "Court vision",
+      "detail": "One sentence about what happened at this exact second. Talk to them directly. Use 'you'."
+    },
+    {
+      "type": "weakness",
+      "timestamp": 14,
+      "label": "Predictable handle",
+      "detail": "One sentence about the specific issue you saw. Direct."
+    }
   ],
   "drillRecommendations": [
-    {"drillId": "bh-14", "reason": "Why this drill fixes the issue. Talk to them directly. 1 sentence."}
+    {"drillId": "bh-14", "reason": "One sentence explaining why this drill targets what you saw."}
   ],
-  "coachNote": "Final 1-2 sentence note from Coach X. Motivating but real."
+  "coachNote": "Final 1-2 sentence note from Coach X. Motivating but real. Talk to them."
 }`;
 
   try {
@@ -269,13 +289,23 @@ Return ONLY valid JSON, no markdown:
     const analysis = JSON.parse(cleanText.substring(start, end + 1));
 
     // Defensive defaults so the UI never breaks
-    if (!Array.isArray(analysis.strengths)) analysis.strengths = [];
-    if (!Array.isArray(analysis.weaknesses)) analysis.weaknesses = [];
+    if (!Array.isArray(analysis.moments)) analysis.moments = [];
     if (!Array.isArray(analysis.drillRecommendations)) analysis.drillRecommendations = [];
     if (!analysis.overallGrade) analysis.overallGrade = 'C';
-    if (!analysis.summary) analysis.summary = 'Analysis complete.';
+    if (!analysis.summary) analysis.summary = '';
     if (!analysis.coachNote) analysis.coachNote = '';
     if (!analysis.openingLine) analysis.openingLine = '';
+
+    // Ensure each moment has the required fields with safe types
+    analysis.moments = analysis.moments
+      .filter(m => m && typeof m.timestamp === 'number' && m.detail)
+      .map(m => ({
+        type: m.type === 'strength' ? 'strength' : 'weakness',
+        timestamp: Math.max(0, Math.floor(m.timestamp)),
+        label: String(m.label || ''),
+        detail: String(m.detail || ''),
+      }))
+      .sort((a, b) => a.timestamp - b.timestamp);
 
     return res.status(200).json(analysis);
   } catch (error) {
